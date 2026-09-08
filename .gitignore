@@ -1,0 +1,9 @@
+# 系统/编辑器杂项
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# 依赖与构建产物
+node_modules/
+dist/
+*.log
