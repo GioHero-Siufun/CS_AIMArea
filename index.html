@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS2 基本功训练器 · 急停 &amp; 瞄准</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <h1>CS2 基本功训练器</h1>
+  <nav id="tabs">
+    <button class="tab active" data-tab="left" id="tab-left">左手 · 急停训练</button>
+    <button class="tab" data-tab="aim" id="tab-aim">右手 · 瞄准训练</button>
+  </nav>
+  <div class="spacer"></div>
+  <label class="hdr-ctl">武器(决定移速)
+    <select id="g-weapon"></select>
+    <span id="g-customWrap" hidden>
+      <input type="range" id="g-customSpeed" min="120" max="300" step="5">
+      <b id="g-customVal">250</b>
+    </span>
+  </label>
+  <label class="hdr-ctl chk"><input type="checkbox" id="g-sound" checked> 音效</label>
+</header>
+
+<main>
+  <!-- ============ 左手 · 急停训练 ============ -->
+  <section class="panel" id="tab-left-sec">
+    <div class="stage">
+      <canvas id="leftCanvas"></canvas>
+      <div id="leftHud">
+        <div class="hud-chip"><span class="lbl">速度</span><b id="L-speedVal">0 u/s</b></div>
+        <div class="hud-chip"><span class="lbl">≈</span><b id="L-speedMps">0.0 m/s</b></div>
+        <div class="hud-chip" id="L-timerWrap" hidden><span class="lbl">急停中</span><b id="L-timer">0</b><span class="lbl">ms</span></div>
+        <div id="L-feedback"></div>
+        <div id="keys">
+          <div class="krow">
+            <div class="k" data-k="KeyW">W</div>
+          </div>
+          <div class="krow">
+            <div class="k" data-k="KeyA">A</div>
+            <div class="k" data-k="KeyS">S</div>
+            <div class="k" data-k="KeyD">D</div>
+          </div>
+          <div class="krow">
+            <div class="k wide" data-k="Space">SPACE 跳跃</div>
+          </div>
+        </div>
+        <div id="L-hint">按住 WASD 移动小球，进入金色圆环后<b>立刻反向按键急停</b>（松开刹车是慢动作）</div>
+      </div>
+      <div id="leftLockOverlay">
+        <div class="lockbox">
+          <h2>左手 · 急停训练</h2>
+          <p class="lock-hint">WASD <b>移动</b> · 鼠标 <b>视角</b>（CS2 灵敏度换算）· <b>空格</b> 跳跃 · <b>Esc</b> 解锁<br>冲入圆环后<b>立刻反向按键急停</b> —— 逆向键是 CS 里唯一的合法刹车</p>
+          <p class="lock-hint dim-txt">切到「拉线墙 / 矩形块 / 拆除」会自动进入 2D 俯视编辑视图，完成后点「3D 训练」返回</p>
+          <button id="leftLockBtn" class="btn big">点击锁定鼠标 · 开始训练</button>
+        </div>
+      </div>
+    </div>
+    <aside class="side">
+      <h3>左手 · 急停训练</h3>
+      <div class="grp">
+        <label>训练模式</label>
+        <div class="seg">
+          <button id="L-modeTrain" class="active">目标训练</button>
+          <button id="L-modeFree">自由练习</button>
+        </div>
+      </div>
+      <div class="grp">
+        <label>目标距离</label>
+        <select id="L-dist">
+          <option value="1">近 260–360 u</option>
+          <option value="2" selected>中 420–560 u</option>
+          <option value="3">远 660–900 u</option>
+        </select>
+      </div>
+      <div class="grp">
+        <label>急停圈半径 <b id="L-ringVal" class="accent-b">56</b> u（越精密越难）</label>
+        <input type="range" id="L-ring" min="32" max="128" step="8" value="56">
+      </div>
+      <div class="grp">
+        <label class="chk"><input type="checkbox" id="L-vector" checked> 显示速度矢量</label>
+        <label class="chk"><input type="checkbox" id="L-auto" checked> 完成后自动生成下一目标（未勾选按 F）</label>
+      </div>
+      <h3>障碍物</h3>
+      <div class="grp">
+        <label>绘制工具（编辑时自动切 2D 俯视）</label>
+        <div class="seg" id="L-toolSeg">
+          <button data-tool="play" class="active">3D 训练</button>
+          <button data-tool="wall">拉线墙</button>
+          <button data-tool="rect">矩形块</button>
+          <button data-tool="del">拆除</button>
+        </div>
+      </div>
+      <div class="grp">
+        <label>障碍物高度（颜色分级）</label>
+        <div class="seg hseg" id="L-hSeg">
+          <button data-h="0" class="active"><i class="h-dot d0"></i>可跨上 14u</button>
+          <button data-h="1"><i class="h-dot d1"></i>可跳上 40u</button>
+          <button data-h="2"><i class="h-dot d2"></i>不可跳上 96u</button>
+        </div>
+      </div>
+      <div class="grp">
+        <label>3D 视角灵敏度 <b id="L-sensVal" class="accent-b">2.00</b> <span class="dim-txt">（与右手训练共享）</span></label>
+        <input type="range" id="L-sens" min="0.2" max="5" step="0.05">
+      </div>
+      <div id="L-obList" class="obs"></div>
+      <div class="grp row">
+        <button id="L-obUndo" class="btn small">撤销</button>
+        <button id="L-obClear" class="btn small">清空障碍物</button>
+      </div>
+      <h3>统计</h3>
+      <div class="stats">
+        <div><span class="lbl">次数</span><b id="L-n">0</b></div>
+        <div><span class="lbl">平均急停</span><b id="L-avg">–</b></div>
+        <div><span class="lbl">最佳急停</span><b id="L-best">–</b></div>
+        <div><span class="lbl">反向急停率</span><b id="L-csfRate">–</b></div>
+      </div>
+      <div id="L-results" class="results"></div>
+      <button id="L-resetStats" class="btn small">清空统计</button>
+      <h3>急停原理 · CS2 常量</h3>
+      <div class="theory">
+        <p>加速 <b>5.5</b> · 摩擦 <b>5.2</b> · 停止速 <b>80</b> · 空中加速 <b>12</b><br>重力 <b>800</b> u/s² · 起跳 <b>302</b> u/s</p>
+        <p>满速 250 u/s 时：<br>松开刹车 ≈ <b id="L-theoryBrake">–</b><br>反向急停 ≈ <b id="L-theoryStrafe">–</b></p>
+        <p class="dim-txt">计时规则：<b>按下刹车（反向按键或松开所有移动键）那一刻</b>开始计时，按"效率比 = 实际耗时 ÷ 理论最优"评级，与进圈快慢无关。S 级：效率 ≤1.25× 且偏差 ≤ 圈的 22%。</p>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ============ 右手 · 瞄准训练 ============ -->
+  <section class="panel hidden" id="tab-aim-sec">
+    <div class="stage">
+      <canvas id="aimCanvas"></canvas>
+
+      <div id="aimHud">
+        <div class="hud-chip big"><span class="lbl">命中</span><b id="aim-hits">0</b></div>
+        <div class="hud-chip"><span class="lbl">射击</span><b id="aim-shots">0</b></div>
+        <div class="hud-chip"><span class="lbl">命中率</span><b id="aim-acc">–</b></div>
+        <div class="hud-chip"><span class="lbl">命中/分</span><b id="aim-kpm">–</b></div>
+        <div class="hud-chip"><span class="lbl">反应</span><b id="aim-react">–</b></div>
+        <div class="hud-chip big amber" id="aim-timerChip"><b id="aim-timer">60</b><span class="lbl">s</span></div>
+        <div class="hud-chip"><span class="lbl">最佳60s</span><b id="aim-best">–</b></div>
+        <div id="aim-msg"></div>
+      </div>
+
+      <div id="aimLockOverlay">
+        <div class="lockbox">
+          <h2>右手 · 瞄准训练</h2>
+          <p class="lock-hint">左键 / 右键 <b>射击</b> · <b>Esc</b> 解锁鼠标 · <b>R</b> 重新掷球 · <b>1–4</b> 切换模式<br>WASD 移动（需在下方设置开启）· 移动物理与左手训练同源</p>
+          <p class="lock-hint dim-txt">本页按 CS2 换算灵敏度：1 像素计 = 1 计数，角度 = 0.022 × 灵敏度 × 计数。<br>建议关闭 Windows「提高指针精确度」以获得与游戏一致的鼠标手感（将申请原始输入）。</p>
+          <button id="aimLockBtn" class="btn big">点击锁定鼠标 · 开始训练</button>
+        </div>
+      </div>
+
+      <div id="aimEnd" hidden>
+        <div class="lockbox">
+          <h2>60 秒挑战结束</h2>
+          <div id="aimEndStats" class="endstats"></div>
+          <div class="endbtns">
+            <button id="aimEndAgain" class="btn big">再来 60 秒</button>
+            <button id="aimEndClose" class="btn">关闭</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="aimBar">
+        <div class="modes">
+          <button class="mode-btn active" data-mode="flick">清球</button>
+          <button class="mode-btn" data-mode="track">追踪</button>
+          <button class="mode-btn" data-mode="react">反应</button>
+          <button class="mode-btn" data-mode="time">60秒挑战</button>
+        </div>
+        <label>灵敏度 <input type="range" id="aim-sens" min="0.2" max="5" step="0.05"> <b id="aim-sensVal">2.00</b></label>
+        <label>DPI <select id="aim-dpi"><option>400</option><option>800</option><option>1600</option></select></label>
+        <span class="dim-txt" id="aim-cm360"></span>
+        <label>FOV <input type="range" id="aim-fov" min="70" max="110" step="1"> <b id="aim-fovVal">90</b></label>
+        <label class="chk"><input type="checkbox" id="aim-move"> WASD 移动</label>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>左手：WASD 移动 · 空格跳跃 · 圈内反向急停判定</span>
+  <span class="sep">|</span>
+  <span>右手：左/右键射击 · Esc 解锁 · R 掷球 · 模式切换需先按 Esc 解锁</span>
+</footer>
+
+<script src="js/config.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/left.js"></script>
+<script src="js/aim.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
