@@ -102,6 +102,12 @@
       hover: $('aim-hover'), hoverVal: $('aim-hoverVal'),
       dirFront: $('dir-front'), dirBack: $('dir-back'),
       dirLeft: $('dir-left'), dirRight: $('dir-right'), dirFloat: $('dir-float'),
+      cfgBtn: $('aimCfgBtn'), aimCfg: $('aimCfg'),
+      chBtns: document.querySelectorAll('.ch-sw'), styleBtns: document.querySelectorAll('#ch-style button'),
+      chGap: $('ch-gap'), chGapVal: $('ch-gapVal'),
+      chLen: $('ch-len'), chLenVal: $('ch-lenVal'),
+      chThick: $('ch-thick'), chThickVal: $('ch-thickVal'),
+      chDot: $('ch-dot'), chOutline: $('ch-outline'), chDynamic: $('ch-dynamic'),
       modeBtns: document.querySelectorAll('.mode-btn')
     };
     this.sets = S.settings.aim;
@@ -141,8 +147,10 @@
 
     this.locked = false;
     this.lockSupported = 'requestPointerLock' in this.canvas;
-    this.mouseX = 0; this.mouseY = 0;
+    this.mouseX = -1; this.mouseY = -1;
     this.w = 0; this.h = 0; this.dpr = 1;
+    this.cross = S.settings.aim.cross;
+    this.cfgOpen = false;
 
     this.bindEvents();
     this.resize();
@@ -342,11 +350,98 @@
       ];
       self.sets.dirs = self.dirs.slice();
       S.saveSettings();
+      self.respawnAll(); /* 立即映射到场景: 按新方向重掷 */
     }
     var dirBoxes = [this.els.dirFront, this.els.dirBack, this.els.dirLeft, this.els.dirRight, this.els.dirFloat];
     for (var dbi = 0; dbi < dirBoxes.length; dbi++) {
       dirBoxes[dbi].addEventListener('change', function () { readDirs(); S.SFX.ui(); });
     }
+
+    /* ---- 设置面板展开/收起 + 准星设置 ---- */
+    this.els.cfgBtn.addEventListener('click', function () {
+      self.els.cfgBtn.blur();
+      self.cfgOpen = !self.cfgOpen;
+      self.renderCfgState();
+      S.SFX.ui();
+    });
+
+    var cross = this.cross;
+    this.els.chGap.value = String(cross.gap);
+    this.els.chLen.value = String(cross.len);
+    this.els.chThick.value = String(cross.thick);
+    this.els.chDot.checked = !!cross.dot;
+    this.els.chOutline.checked = !!cross.outline;
+    this.els.chDynamic.checked = !!cross.dynamic;
+    this.els.chGapVal.textContent = String(cross.gap);
+    this.els.chLenVal.textContent = String(cross.len);
+    this.els.chThickVal.textContent = String(cross.thick);
+    function syncChSwatches() {
+      var want = cross.color.toLowerCase();
+      for (var i = 0; i < self.els.chBtns.length; i++) {
+        self.els.chBtns[i].classList.toggle('active',
+          self.els.chBtns[i].getAttribute('data-c').toLowerCase() === want);
+      }
+    }
+    syncChSwatches();
+    for (var ci = 0; ci < this.els.chBtns.length; ci++) {
+      (function (btn) {
+        btn.addEventListener('click', function () {
+          btn.blur();
+          cross.color = btn.getAttribute('data-c');
+          syncChSwatches();
+          S.saveSettings();
+          S.SFX.ui();
+        });
+      })(this.els.chBtns[ci]);
+    }
+    var styleBtns = this.els.styleBtns;
+    for (var si = 0; si < styleBtns.length; si++) {
+      (function (btn) {
+        btn.addEventListener('click', function () {
+          btn.blur();
+          cross.style = btn.getAttribute('data-s');
+          for (var k = 0; k < styleBtns.length; k++) {
+            styleBtns[k].classList.toggle('active', styleBtns[k] === btn);
+          }
+          S.saveSettings();
+          S.SFX.ui();
+        });
+      })(styleBtns[si]);
+    }
+    this.els.chGap.addEventListener('input', function () {
+      cross.gap = +self.els.chGap.value;
+      self.els.chGapVal.textContent = String(cross.gap);
+      S.saveSettings();
+    });
+    this.els.chLen.addEventListener('input', function () {
+      cross.len = +self.els.chLen.value;
+      self.els.chLenVal.textContent = String(cross.len);
+      S.saveSettings();
+    });
+    this.els.chThick.addEventListener('input', function () {
+      cross.thick = +self.els.chThick.value;
+      self.els.chThickVal.textContent = String(cross.thick);
+      S.saveSettings();
+    });
+    function bindChk(box, key) {
+      box.addEventListener('change', function () {
+        cross[key] = box.checked;
+        S.saveSettings();
+        S.SFX.ui();
+      });
+    }
+    bindChk(this.els.chDot, 'dot');
+    bindChk(this.els.chOutline, 'outline');
+    bindChk(this.els.chDynamic, 'dynamic');
+  };
+
+  /* 设置面板状态: 锁定时收起+变暗, Esc 解锁后按钮脉冲提示、面板增亮 */
+  AimGame.prototype.renderCfgState = function () {
+    if (this.locked) this.cfgOpen = false;
+    this.els.cfgBtn.classList.toggle('ready', !this.locked);
+    this.els.cfgBtn.textContent = this.cfgOpen ? '✕ 收起' : '⚙ 设置';
+    this.els.aimCfg.hidden = !this.cfgOpen;
+    this.els.aimCfg.classList.toggle('ready', !this.locked && this.cfgOpen);
   };
 
   AimGame.prototype.applyBallStyle = function () {
@@ -395,6 +490,7 @@
   AimGame.prototype.updateOverlays = function () {
     var showLock = !this.locked && !this.endOpen;
     this.els.lockOverlay.hidden = !showLock;
+    this.renderCfgState();
   };
   AimGame.prototype.hideEnd = function () {
     this.els.end.hidden = true;
@@ -1023,19 +1119,16 @@
       }
     }
 
-    // 准星
+    // 准星 (CS 式自定义; 解锁状态显示跟随鼠标的预览)
     if (this.locked) {
-      var gap = 5 + this.crosshairKick * 9;
-      var len = 7, lw = 2;
-      var col = this.missFlash > 0 ? 'rgba(226,89,78,0.95)' : 'rgba(127,216,255,0.9)';
-      ctx.strokeStyle = col;
-      ctx.lineWidth = lw;
-      ctx.beginPath();
-      ctx.moveTo(w / 2 - gap - len, h / 2); ctx.lineTo(w / 2 - gap, h / 2);
-      ctx.moveTo(w / 2 + gap, h / 2); ctx.lineTo(w / 2 + gap + len, h / 2);
-      ctx.moveTo(w / 2, h / 2 - gap - len); ctx.lineTo(w / 2, h / 2 - gap);
-      ctx.moveTo(w / 2, h / 2 + gap); ctx.lineTo(w / 2, h / 2 + gap + len);
-      ctx.stroke();
+      var ccfg = this.cross;
+      if (this.missFlash > 0) {
+        ccfg = { color: '#e2594e', style: this.cross.style, gap: this.cross.gap,
+          len: this.cross.len, thick: this.cross.thick, dot: this.cross.dot,
+          outline: this.cross.outline, dynamic: this.cross.dynamic };
+      }
+      var spdC = Math.hypot(this.move.vel.x, this.move.vel.z);
+      S.drawCrosshair(ctx, w / 2, h / 2, ccfg, this.crosshairKick, spdC / 250);
       if (this.hitMark > 0) {
         var hm = 3, hl = 6;
         var a = this.hitMark / 0.22;
@@ -1049,6 +1142,11 @@
         }
         ctx.stroke();
       }
+    } else if (this.mouseX >= 0 && this.mouseY >= 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      S.drawCrosshair(ctx, this.mouseX, this.mouseY, this.cross, 0, 0);
+      ctx.restore();
     }
 
     // 反应模式: 目标在屏幕外时指方向

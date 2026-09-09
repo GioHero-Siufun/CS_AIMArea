@@ -127,6 +127,7 @@
     this.feedbackTimer = null;
     this.slowHintAt = -9;
     this.w = 0; this.h = 0; this.dpr = 1;
+    this.mouseX = -1; this.mouseY = -1;
     this.view2d = { px: 0, pz: 0, ppu: 1, w: 0, h: 0 };
 
     // ---- 障碍物 ----
@@ -254,6 +255,10 @@
           self.yaw += e.movementX * cg;
           self.pitch -= e.movementY * cg;
           self.pitch = clamp(self.pitch, -87 * DEG, 87 * DEG);
+        } else {
+          var cvs = canvas.getBoundingClientRect();
+          self.mouseX = e.clientX - cvs.left;
+          self.mouseY = e.clientY - cvs.top;
         }
         return;
       }
@@ -1079,17 +1084,15 @@
       }
     }
 
-    // 准星(锁定时)
+    // 准星 (与右手训练共用的 CS 式自定义准星; 解锁时预览跟随鼠标)
     if (this.locked) {
-      var gap = 5, len = 7;
-      ctx.strokeStyle = 'rgba(127,216,255,0.9)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(w / 2 - gap - len, h / 2); ctx.lineTo(w / 2 - gap, h / 2);
-      ctx.moveTo(w / 2 + gap, h / 2); ctx.lineTo(w / 2 + gap + len, h / 2);
-      ctx.moveTo(w / 2, h / 2 - gap - len); ctx.lineTo(w / 2, h / 2 - gap);
-      ctx.moveTo(w / 2, h / 2 + gap); ctx.lineTo(w / 2, h / 2 + gap + len);
-      ctx.stroke();
+      var spdL = Math.hypot(vx, vz);
+      S.drawCrosshair(ctx, w / 2, h / 2, S.settings.aim.cross, 0, spdL / this.weaponSpeed);
+    } else if (this.mouseX >= 0 && this.mouseY >= 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      S.drawCrosshair(ctx, this.mouseX, this.mouseY, S.settings.aim.cross, 0, 0);
+      ctx.restore();
     }
 
     // 目标屏幕外指示

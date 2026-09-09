@@ -47,7 +47,8 @@
     customSpeed: 250,
     left: { dist: 2, vector: true, auto: true, mode: 'train', ring: 56, obstacles: [] },
     aim: { mode: 'flick', sens: 2.0, dpi: 400, fov: 90, move: false,
-      ballR: 14, ballColor: '#e8b339', dirs: [true, true, true, true, true], hoverSecs: 3 }
+      ballR: 14, ballColor: '#e8b339', dirs: [true, true, true, true, true], hoverSecs: 3,
+      cross: { color: '#7fd8ff', style: 'cross', gap: 5, len: 7, thick: 2, dot: false, outline: false, dynamic: true } }
   };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -85,5 +86,49 @@
     var w = S.findWeapon(S.settings.weapon);
     if (!w) return 250;
     return w.speed != null ? w.speed : S.settings.customSpeed;
+  };
+
+  /* ---- CS 式准星（左右手训练共用） ---- */
+  S.CROSS_COLORS = [
+    { n: '青(默认)', c: '#7fd8ff' },
+    { n: '绿', c: '#00ff00' },
+    { n: '黄', c: '#ffff00' },
+    { n: '蓝', c: '#00bfff' },
+    { n: '粉', c: '#ff00ff' },
+    { n: '白', c: '#ffffff' },
+    { n: '红', c: '#ff0000' }
+  ];
+  /* kick: 射击扩散(0..1)  moveFrac: 移动速度占比(0..1); dynamic 开启时准星扩散 */
+  S.drawCrosshair = function (ctx, x, y, cfg, kick, moveFrac) {
+    var TAU = Math.PI * 2;
+    var gap = cfg.gap + (cfg.dynamic ? kick * 9 + moveFrac * 8 : 0);
+    var len = cfg.len, th = cfg.thick;
+    var arms = cfg.style === 'cross' ? [0, 1, 2, 3] : cfg.style === 't' ? [1, 2, 3] : [];
+    function strokeArms(color, wdt) {
+      if (!arms.length) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = wdt;
+      ctx.beginPath();
+      for (var i = 0; i < arms.length; i++) {
+        var a = arms[i];
+        if (a === 0) { ctx.moveTo(x, y - gap); ctx.lineTo(x, y - gap - len); }
+        else if (a === 1) { ctx.moveTo(x, y + gap); ctx.lineTo(x, y + gap + len); }
+        else if (a === 2) { ctx.moveTo(x - gap, y); ctx.lineTo(x - gap - len, y); }
+        else { ctx.moveTo(x + gap, y); ctx.lineTo(x + gap + len, y); }
+      }
+      ctx.stroke();
+    }
+    function dot(col, r) {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, TAU);
+      ctx.fill();
+    }
+    if (cfg.outline) {
+      strokeArms('rgba(0,0,0,0.85)', th + 2.5);
+      if (cfg.dot) dot('rgba(0,0,0,0.85)', th * 0.55 + 1.5);
+    }
+    strokeArms(cfg.color, th);
+    if (cfg.dot) dot(cfg.color, Math.max(1.5, th * 0.55));
   };
 })();

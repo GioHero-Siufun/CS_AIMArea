@@ -166,7 +166,9 @@
         </div>
       </div>
 
-      <div id="aimCfg">
+      <button id="aimCfgBtn" class="cfg-toggle" title="小球 & 准星设置">⚙ 设置</button>
+
+      <div id="aimCfg" hidden>
         <h4>小球设置</h4>
         <div class="cfg-row">
           <label>大小 <b id="aim-ballRVal">14</b> u</label>
@@ -196,7 +198,36 @@
           <label>跟随滞留 <b id="aim-hoverVal">3.0</b> s</label>
           <input type="range" id="aim-hover" min="0.5" max="10" step="0.5" value="3">
         </div>
-        <p class="cfg-note">跟随模式：准星停留在小球上超过滞留时间，小球会<b>消失逃脱</b>（球上方显示进度条）。大小/颜色立即生效，方向作用于下一个球。按 <b>Esc</b> 解锁后即可直接点此面板；点击画布重新锁定。</p>
+        <h4>准星设置（CS 式）</h4>
+        <div class="cfg-row">
+          <label>颜色</label>
+          <div class="swatches">
+            <button class="ch-sw active" data-c="#7fd8ff" style="background:#7fd8ff" title="青(默认)"></button>
+            <button class="ch-sw" data-c="#00ff00" style="background:#00ff00" title="绿"></button>
+            <button class="ch-sw" data-c="#ffff00" style="background:#ffff00" title="黄"></button>
+            <button class="ch-sw" data-c="#00bfff" style="background:#00bfff" title="蓝"></button>
+            <button class="ch-sw" data-c="#ff00ff" style="background:#ff00ff" title="粉"></button>
+            <button class="ch-sw" data-c="#ffffff" style="background:#ffffff" title="白"></button>
+            <button class="ch-sw" data-c="#ff0000" style="background:#ff0000" title="红"></button>
+          </div>
+        </div>
+        <div class="cfg-row">
+          <label>样式</label>
+          <div class="mini-seg" id="ch-style">
+            <button data-s="cross" class="active">十字</button>
+            <button data-s="t">T形</button>
+            <button data-s="dot">点</button>
+          </div>
+        </div>
+        <div class="cfg-row"><label>间隙 <b id="ch-gapVal">5</b></label><input type="range" id="ch-gap" min="0" max="20" step="1" value="5"></div>
+        <div class="cfg-row"><label>长度 <b id="ch-lenVal">7</b></label><input type="range" id="ch-len" min="1" max="16" step="1" value="7"></div>
+        <div class="cfg-row"><label>粗细 <b id="ch-thickVal">2</b></label><input type="range" id="ch-thick" min="1" max="6" step="1" value="2"></div>
+        <div class="chr">
+          <label class="chk"><input type="checkbox" id="ch-dot"> 中心点</label>
+          <label class="chk"><input type="checkbox" id="ch-outline"> 描边</label>
+          <label class="chk"><input type="checkbox" id="ch-dynamic" checked> 动态(移动/射击扩散)</label>
+        </div>
+        <p class="cfg-note">所有改动<b>即时映射到场景</b>：大小/颜色马上生效，方向立即重掷，准星实时预览（解锁状态下预览跟随鼠标）。</p>
       </div>
 
       <div id="aimBar">
