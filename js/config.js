@@ -48,6 +48,7 @@
     left: { dist: 2, vector: true, auto: true, mode: 'train', ring: 56, obstacles: [] },
     aim: { mode: 'flick', sens: 2.0, dpi: 400, fov: 90, move: false,
       ballR: 14, ballColor: '#e8b339', dirs: [true, true, true, true, true], hoverSecs: 3,
+      wpOff: { x: 0, y: 0 },
       cross: { color: '#7fd8ff', style: 'cross', gap: 5, len: 7, thick: 2, dot: false, outline: false, dynamic: true } }
   };
 

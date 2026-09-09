@@ -83,21 +83,24 @@
     return 'rgb(' + r + ',' + g + ',' + b + ')';
   }
 
-  /* ---- 墙面设置面板几何 (后墙右下角, 紧凑角落面板, 不遮挡训练视场) ---- */
+  /* ---- 墙面设置面板几何 (后墙, 注意: 世界y向上, 面板顶部=大y) ----
+   * 面板整体可用鼠标中键拖动(wpOff), 红按钮与面板一起移动。 */
   var WP = {
-    z: 0, x1: 150, x2: 320, y1: 46, y2: 172,
+    z: 0,
+    x1: 110, x2: 322, y1: 32, y2: 188,
     red: { id: 'red', x1: 252, y1: 86, x2: 304, y2: 110 },
-    tabBall: { id: 'tab-ball', x1: 214, y1: 50, x2: 252, y2: 68 },
-    tabCross: { id: 'tab-cross', x1: 254, y1: 50, x2: 292, y2: 68 },
-    close: { id: 'close', x1: 296, y1: 50, x2: 316, y2: 68 },
-    sizeTk: { id: 'size', x1: 216, y1: 74, x2: 302, y2: 88 },
-    hoverTk: { id: 'hover', x1: 216, y1: 158, x2: 302, y2: 172 },
-    gapTk: { id: 'gap', x1: 216, y1: 112, x2: 302, y2: 126 },
-    lenTk: { id: 'len', x1: 216, y1: 130, x2: 302, y2: 144 },
-    thickTk: { id: 'thick', x1: 216, y1: 148, x2: 302, y2: 162 },
-    ball: { cx0: 158, gap: 20, sz: 16, colorY: 94, dirY1: 116, dirY2: 138, dirH: 16 },
-    cross: { cx0: 158, gap: 20, sz: 14, colorY: 72, styleY: 92, styleH: 16, styleW: 38,
-      togY: 160, togH: 12, togW: 34 }
+    tabBall: { id: 'tab-ball', x1: 224, y1: 162, x2: 260, y2: 184 },
+    tabCross: { id: 'tab-cross', x1: 262, y1: 162, x2: 298, y2: 184 },
+    close: { id: 'close', x1: 301, y1: 162, x2: 318, y2: 184 },
+    sizeTk: { id: 'size', x1: 160, y1: 148, x2: 290, y2: 162 },
+    hoverTk: { id: 'hover', x1: 160, y1: 34, x2: 290, y2: 48 },
+    gapTk: { id: 'gap', x1: 160, y1: 92, x2: 290, y2: 106 },
+    lenTk: { id: 'len', x1: 160, y1: 72, x2: 290, y2: 86 },
+    thickTk: { id: 'thick', x1: 160, y1: 52, x2: 290, y2: 66 },
+    ball: { cx0: 118, gap: 28, sz: 20, colorY: 118, dirY1: 92, dirY2: 66, dirH: 18 },
+    cross: { cx0: 118, gap: 24, sz: 16, colorY: 144, styleY: 116, styleH: 18, styleW: 46,
+      togY: 34, togH: 14, togW: 48 },
+    btnC: { x: 278, y: 98 }
   };
   WP.z = ZMAX - 0.6;
   var BALL_COLORS = ['#e8b339', '#7fd8ff', '#8ae99a', '#f27cc4', '#ffffff', '#e2594e'];
@@ -162,7 +165,9 @@
     this.mouseX = -1; this.mouseY = -1;
     this.w = 0; this.h = 0; this.dpr = 1;
     this.cross = S.settings.aim.cross;
-    this.wallUI = { open: false, tab: 'ball', drag: null, hover: null };
+    this.wallUI = { open: false, tab: 'ball', drag: null, hover: null, btnDrag: false };
+    var wo = (S.settings.aim.wpOff && S.settings.aim.wpOff) || {};
+    this.wpOff = { x: +wo.x || 0, y: +wo.y || 0 };
 
     this.bindEvents();
     this.resize();
@@ -205,14 +210,26 @@
 
     canvas.addEventListener('mousemove', function (e) {
       if (self.locked) {
-        var cg = 0.022 * self.sens * DEG;
-        self.yaw += e.movementX * cg;
-        self.pitch -= e.movementY * cg;
+        if (self.wallUI.btnDrag) {
+          /* 中键拖动(锁定态): 用鼠标增量移动按钮/面板 */
+          var dz = WP.z - self.camVec().z;
+          var cg = 0.022 * self.sens * DEG;
+          self.moveButton(e.movementX * cg * dz, -e.movementY * cg * dz);
+          return;
+        }
+        var cgv = 0.022 * self.sens * DEG;
+        self.yaw += e.movementX * cgv;
+        self.pitch -= e.movementY * cgv;
         self.pitch = clamp(self.pitch, -87 * DEG, 87 * DEG);
       } else {
         var r = canvas.getBoundingClientRect();
         self.mouseX = e.clientX - r.left;
         self.mouseY = e.clientY - r.top;
+        if (self.wallUI.btnDrag) {
+          var wpb = self.wallHitFromMouse();
+          if (wpb) self.moveButtonTo(wpb.x, wpb.y);
+          return;
+        }
         var hov = self.uiHitFromMouse();
         self.wallUI.hover = hov ? hov.id : null;
         canvas.style.cursor = hov ? 'pointer' : 'default';
@@ -220,6 +237,16 @@
     });
     canvas.addEventListener('mousedown', function (e) {
       canvas.blur();
+      if (e.button === 1) { /* 鼠标中键: 拖动设置按钮/面板 */
+        e.preventDefault();
+        self.wallUI.btnDrag = true;
+        self.canvas.style.cursor = 'grabbing';
+        if (!self.locked) {
+          var wpb = self.wallHitFromMouse();
+          if (wpb) self.moveButtonTo(wpb.x, wpb.y);
+        }
+        return;
+      }
       if (e.button !== 0 && e.button !== 2) return;
       if (!self.locked) {
         if (self.endOpen) return; /* 结算遮罩打开时不要误操作 */
@@ -245,6 +272,12 @@
     });
     window.addEventListener('mouseup', function () {
       if (self.wallUI.drag) { self.wallUI.drag = null; S.saveSettings(); }
+      if (self.wallUI.btnDrag) {
+        self.wallUI.btnDrag = false;
+        self.canvas.style.cursor = 'default';
+        S.saveSettings();
+        S.SFX.ui();
+      }
     });
 
     document.addEventListener('pointerlockchange', function () {
@@ -369,8 +402,9 @@
   };
 
   AimGame.prototype.uiElems = function () {
+    /* 返回原始(基准)布局, 偏移在 uiHit 中扣除 */
     var list;
-    if (!this.wallUI.open) return [WP.red]; /* 收起时只有红色设置按钮可交互 */
+    if (!this.wallUI.open) return [WP.red];
     list = [WP.tabBall, WP.tabCross, WP.close];
     var i, x, wd;
     if (this.wallUI.tab === 'ball') {
@@ -380,10 +414,9 @@
         list.push({ id: 'c-' + BALL_COLORS[i], x1: x, y1: WP.ball.colorY, x2: x + WP.ball.sz, y2: WP.ball.colorY + WP.ball.sz });
       }
       for (i = 0; i < 5; i++) {
-        var row = i < 3 ? 0 : 1;
-        var cx = 158 + (i < 3 ? i * 44 : (i - 3) * 44);
-        wd = (i === 4) ? 56 : 38;
-        var cy = row === 0 ? WP.ball.dirY1 : WP.ball.dirY2;
+        var cx = 118 + (i < 3 ? i * 56 : (i - 3) * 56);
+        wd = (i === 4) ? 72 : 48;
+        var cy = (i < 3) ? WP.ball.dirY1 : WP.ball.dirY2;
         list.push({ id: 'dir-' + i, x1: cx, y1: cy, x2: cx + wd, y2: cy + WP.ball.dirH });
       }
     } else {
@@ -392,12 +425,12 @@
         list.push({ id: 'chc-' + i, x1: x, y1: WP.cross.colorY, x2: x + WP.cross.sz, y2: WP.cross.colorY + WP.cross.sz });
       }
       for (i = 0; i < STYLE_LIST.length; i++) {
-        var sx2 = 158 + i * 44;
+        var sx2 = 118 + i * 54;
         list.push({ id: 'st-' + STYLE_LIST[i][0], x1: sx2, y1: WP.cross.styleY, x2: sx2 + WP.cross.styleW, y2: WP.cross.styleY + WP.cross.styleH });
       }
       list.push(WP.gapTk, WP.lenTk, WP.thickTk);
       for (i = 0; i < TOG_LIST.length; i++) {
-        var tx = 158 + i * 40;
+        var tx = 118 + i * 56;
         list.push({ id: 'tg-' + TOG_LIST[i][0], x1: tx, y1: WP.cross.togY, x2: tx + WP.cross.togW, y2: WP.cross.togY + WP.cross.togH });
       }
     }
@@ -405,6 +438,8 @@
   };
 
   AimGame.prototype.uiHit = function (x, y) {
+    x -= this.wpOff.x;
+    y -= this.wpOff.y;
     var list = this.uiElems();
     for (var i = list.length - 1; i >= 0; i--) {
       var el = list[i];
@@ -432,6 +467,15 @@
     this.wallUI.drag = null;
     this.updateOverlays();
     S.SFX.ui();
+  };
+
+  AimGame.prototype.moveButton = function (dx, dy) {
+    this.wpOff.x = clamp(this.wpOff.x + dx, -430, -4);
+    this.wpOff.y = clamp(this.wpOff.y + dy, -32, 10);
+  };
+  AimGame.prototype.moveButtonTo = function (x, y) {
+    this.wpOff.x = clamp(x - WP.btnC.x, -430, -4);
+    this.wpOff.y = clamp(y - WP.btnC.y, -32, 10);
   };
 
   AimGame.prototype.uiPress = function (el) {
@@ -501,8 +545,9 @@
     var ctx = this.ctx;
     var wu = this.wallUI;
     var isOpen = wu.open;
+    var ox = this.wpOff.x, oy = this.wpOff.y;
     function P(x, y) {
-      var c = toCam({ x: x, y: y, z: WP.z }, cam, b);
+      var c = toCam({ x: x + ox, y: y + oy, z: WP.z }, cam, b);
       if (c.z < NEAR) return null;
       var s = project(c, f, w, h);
       return { x: s.x, y: s.y, d: c.z };
@@ -545,8 +590,8 @@
         ctx.arc(p.x, p.y, Math.max(2.5, (f * (tk.y2 - tk.y1) / p.d) * 0.45), 0, TAU);
         ctx.fill();
       }
-      if (label) text(label, tk.x1 - 10, (tk.y1 + tk.y2) / 2, 8.5, '#9fb2cd', 'right');
-      if (valText) text(valText, tk.x2 + 10, (tk.y1 + tk.y2) / 2, 8.5, '#ffd75e', 'left');
+      if (label) text(label, tk.x1 - 10, (tk.y1 + tk.y2) / 2, 9, '#9fb2cd', 'right');
+      if (valText) text(valText, tk.x2 + 10, (tk.y1 + tk.y2) / 2, 9, '#ffd75e', 'left');
     }
 
     if (!isOpen) {
@@ -557,21 +602,23 @@
       return;
     }
 
-    /* 面板底 */
-    rect(WP.x1, WP.y1, WP.x2, WP.y2, 'rgba(10,15,22,0.86)', 'rgba(232,179,57,0.4)', 1);
-    text('⚙ 设置', 156, 59, 8, '#e8b339', 'left');
+    /* 面板底 (世界y向上: y2 是顶部) */
+    rect(WP.x1, WP.y1, WP.x2, WP.y2, 'rgba(10,15,22,0.88)', 'rgba(232,179,57,0.45)', 1);
+    text('⚙ 设置', 118, 173, 8.5, '#e8b339', 'left');
 
-    /* 选项卡 + 关闭 */
+    /* 选项卡 + 关闭 (顶部) */
     var tabOn = wu.tab === 'ball' ? 'rgba(232,179,57,0.28)' : 'rgba(28,38,52,0.85)';
     rect(WP.tabBall.x1, WP.tabBall.y1, WP.tabBall.x2, WP.tabBall.y2, tabOn, 'rgba(120,150,190,0.4)', 1);
-    text('小球', (WP.tabBall.x1 + WP.tabBall.x2) / 2, 57, 8.5, wu.tab === 'ball' ? '#ffd75e' : '#9fb2cd');
+    text('小球', (WP.tabBall.x1 + WP.tabBall.x2) / 2, (WP.tabBall.y1 + WP.tabBall.y2) / 2, 8.5,
+      wu.tab === 'ball' ? '#ffd75e' : '#9fb2cd');
     var tabOn2 = wu.tab === 'cross' ? 'rgba(232,179,57,0.28)' : 'rgba(28,38,52,0.85)';
     rect(WP.tabCross.x1, WP.tabCross.y1, WP.tabCross.x2, WP.tabCross.y2, tabOn2, 'rgba(120,150,190,0.4)', 1);
-    text('准星', (WP.tabCross.x1 + WP.tabCross.x2) / 2, 57, 8.5, wu.tab === 'cross' ? '#ffd75e' : '#9fb2cd');
+    text('准星', (WP.tabCross.x1 + WP.tabCross.x2) / 2, (WP.tabCross.y1 + WP.tabCross.y2) / 2, 8.5,
+      wu.tab === 'cross' ? '#ffd75e' : '#9fb2cd');
     rect(WP.close.x1, WP.close.y1, WP.close.x2, WP.close.y2, '#b23f38', 'rgba(255,255,255,0.35)', 0.95);
-    text('✕', (WP.close.x1 + WP.close.x2) / 2, 55, 9, '#fff');
+    text('✕', (WP.close.x1 + WP.close.x2) / 2, (WP.close.y1 + WP.close.y2) / 2, 9, '#fff');
 
-    var i, x, y2;
+    var i, x;
     if (wu.tab === 'ball') {
       /* 大小 */
       trackEl(WP.sizeTk, (this.ballR - 6) / 26, this.ballR + ' u', '大小');
@@ -584,14 +631,13 @@
       }
       /* 出现方向 */
       for (i = 0; i < 5; i++) {
-        var row = i < 3 ? 0 : 1;
-        var cx = 158 + (i < 3 ? i * 44 : (i - 3) * 44);
-        var wd = (i === 4) ? 56 : 38;
-        var cy = row === 0 ? WP.ball.dirY1 : WP.ball.dirY2;
+        var cx = 118 + (i < 3 ? i * 56 : (i - 3) * 56);
+        var wd = (i === 4) ? 72 : 48;
+        var cy = (i < 3) ? WP.ball.dirY1 : WP.ball.dirY2;
         var on = this.dirs[i];
         rect(cx, cy, cx + wd, cy + WP.ball.dirH,
           on ? 'rgba(86,194,113,0.8)' : 'rgba(28,38,52,0.85)', 'rgba(120,150,190,0.4)', 1);
-        text(DIR_NAMES[i], cx + wd / 2, cy + WP.ball.dirH / 2, 7, on ? '#0c2e17' : '#9fb2cd');
+        text(DIR_NAMES[i], cx + wd / 2, cy + WP.ball.dirH / 2, 7.5, on ? '#0c2e17' : '#9fb2cd');
       }
       /* 滞留 */
       trackEl(WP.hoverTk, (this.hoverSecs - 0.5) / 9.5, this.hoverSecs.toFixed(1) + ' s', '滞留');
@@ -605,11 +651,11 @@
       }
       /* 样式 */
       for (i = 0; i < STYLE_LIST.length; i++) {
-        var sx = 158 + i * 44;
+        var sx = 118 + i * 54;
         var on = this.cross.style === STYLE_LIST[i][0];
         rect(sx, WP.cross.styleY, sx + WP.cross.styleW, WP.cross.styleY + WP.cross.styleH,
           on ? 'rgba(232,179,57,0.35)' : 'rgba(28,38,52,0.85)', 'rgba(120,150,190,0.4)', 1);
-        text(STYLE_LIST[i][1], sx + WP.cross.styleW / 2, WP.cross.styleY + WP.cross.styleH / 2, 7,
+        text(STYLE_LIST[i][1], sx + WP.cross.styleW / 2, WP.cross.styleY + WP.cross.styleH / 2, 7.5,
           on ? '#ffd75e' : '#9fb2cd');
       }
       /* 滑杆 */
@@ -618,11 +664,11 @@
       trackEl(WP.thickTk, (this.cross.thick - 1) / 5, '粗细 ' + this.cross.thick, '');
       /* 开关 */
       for (i = 0; i < TOG_LIST.length; i++) {
-        var tx = 158 + i * 40;
+        var tx = 118 + i * 56;
         var on2 = !!this.cross[TOG_LIST[i][0]];
         rect(tx, WP.cross.togY, tx + WP.cross.togW, WP.cross.togY + WP.cross.togH,
           on2 ? 'rgba(86,194,113,0.8)' : 'rgba(28,38,52,0.85)', 'rgba(120,150,190,0.4)', 1);
-        text(TOG_LIST[i][1], tx + WP.cross.togW / 2, WP.cross.togY + WP.cross.togH / 2, 7,
+        text(TOG_LIST[i][1], tx + WP.cross.togW / 2, WP.cross.togY + WP.cross.togH / 2, 7.5,
           on2 ? '#0c2e17' : '#9fb2cd');
       }
     }
@@ -716,7 +762,16 @@
       return { x: w.at > 0 ? w.at - off : w.at + off, y: rand(80, WALL_H - 24), z: rand(ZMIN + 60, ZMAX - 60) };
     }
     var xmin = -HALF_X + 60, xmax = HALF_X - 60;
-    if (w.at > 0) xmax = 110; /* 后墙: 避让墙面设置面板区域 */
+    if (w.at > 0) {
+      /* 后墙: 避让墙面设置面板当前所在区域 */
+      var px1 = WP.x1 + this.wpOff.x - 30, px2 = WP.x2 + this.wpOff.x + 30;
+      for (var tr = 0; tr < 12; tr++) {
+        var tryX = rand(xmin, 260);
+        if (tryX < px1 || tryX > px2 || tr === 11) return {
+          x: tryX, y: rand(80, WALL_H - 24), z: w.at - off
+        };
+      }
+    }
     return { x: rand(xmin, xmax), y: rand(80, WALL_H - 24), z: w.at > 0 ? w.at - off : w.at + off };
   };
   AimGame.prototype.floatPoint = function () {
