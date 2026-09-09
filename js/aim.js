@@ -83,21 +83,21 @@
     return 'rgb(' + r + ',' + g + ',' + b + ')';
   }
 
-  /* ---- 墙面设置面板几何 (后墙, z = ZMAX) ---- */
+  /* ---- 墙面设置面板几何 (后墙右下角, 紧凑角落面板, 不遮挡训练视场) ---- */
   var WP = {
-    z: 0, x1: 40, x2: 320, y1: 32, y2: 238,
-    red: { id: 'red', x1: 130, y1: 88, x2: 230, y2: 132 },
-    tabBall: { id: 'tab-ball', x1: 172, y1: 42, x2: 228, y2: 72 },
-    tabCross: { id: 'tab-cross', x1: 232, y1: 42, x2: 286, y2: 72 },
-    close: { id: 'close', x1: 290, y1: 40, x2: 314, y2: 68 },
-    sizeTk: { id: 'size', x1: 124, y1: 86, x2: 246, y2: 104 },
-    hoverTk: { id: 'hover', x1: 124, y1: 206, x2: 246, y2: 224 },
-    gapTk: { id: 'gap', x1: 124, y1: 148, x2: 246, y2: 166 },
-    lenTk: { id: 'len', x1: 124, y1: 170, x2: 246, y2: 188 },
-    thickTk: { id: 'thick', x1: 124, y1: 192, x2: 246, y2: 210 },
-    ball: { cx0: 52, gap: 40, sz: 22, colorY: 114, dirY1: 150, dirY2: 178, dirH: 22 },
-    cross: { cx0: 52, gap: 30, sz: 20, colorY: 86, styleY: 112, styleH: 24, styleW: 46,
-      togY: 206, togH: 22, togW: 60 }
+    z: 0, x1: 150, x2: 320, y1: 46, y2: 172,
+    red: { id: 'red', x1: 252, y1: 86, x2: 304, y2: 110 },
+    tabBall: { id: 'tab-ball', x1: 214, y1: 50, x2: 252, y2: 68 },
+    tabCross: { id: 'tab-cross', x1: 254, y1: 50, x2: 292, y2: 68 },
+    close: { id: 'close', x1: 296, y1: 50, x2: 316, y2: 68 },
+    sizeTk: { id: 'size', x1: 216, y1: 74, x2: 302, y2: 88 },
+    hoverTk: { id: 'hover', x1: 216, y1: 158, x2: 302, y2: 172 },
+    gapTk: { id: 'gap', x1: 216, y1: 112, x2: 302, y2: 126 },
+    lenTk: { id: 'len', x1: 216, y1: 130, x2: 302, y2: 144 },
+    thickTk: { id: 'thick', x1: 216, y1: 148, x2: 302, y2: 162 },
+    ball: { cx0: 158, gap: 20, sz: 16, colorY: 94, dirY1: 116, dirY2: 138, dirH: 16 },
+    cross: { cx0: 158, gap: 20, sz: 14, colorY: 72, styleY: 92, styleH: 16, styleW: 38,
+      togY: 160, togH: 12, togW: 34 }
   };
   WP.z = ZMAX - 0.6;
   var BALL_COLORS = ['#e8b339', '#7fd8ff', '#8ae99a', '#f27cc4', '#ffffff', '#e2594e'];
@@ -381,8 +381,8 @@
       }
       for (i = 0; i < 5; i++) {
         var row = i < 3 ? 0 : 1;
-        var cx = 52 + (i < 3 ? i * 60 : (i - 3) * 60);
-        wd = (i === 4) ? 72 : 52;
+        var cx = 158 + (i < 3 ? i * 44 : (i - 3) * 44);
+        wd = (i === 4) ? 56 : 38;
         var cy = row === 0 ? WP.ball.dirY1 : WP.ball.dirY2;
         list.push({ id: 'dir-' + i, x1: cx, y1: cy, x2: cx + wd, y2: cy + WP.ball.dirH });
       }
@@ -392,12 +392,12 @@
         list.push({ id: 'chc-' + i, x1: x, y1: WP.cross.colorY, x2: x + WP.cross.sz, y2: WP.cross.colorY + WP.cross.sz });
       }
       for (i = 0; i < STYLE_LIST.length; i++) {
-        var sx2 = 52 + i * 60;
+        var sx2 = 158 + i * 44;
         list.push({ id: 'st-' + STYLE_LIST[i][0], x1: sx2, y1: WP.cross.styleY, x2: sx2 + WP.cross.styleW, y2: WP.cross.styleY + WP.cross.styleH });
       }
       list.push(WP.gapTk, WP.lenTk, WP.thickTk);
       for (i = 0; i < TOG_LIST.length; i++) {
-        var tx = 52 + i * 70;
+        var tx = 158 + i * 40;
         list.push({ id: 'tg-' + TOG_LIST[i][0], x1: tx, y1: WP.cross.togY, x2: tx + WP.cross.togW, y2: WP.cross.togY + WP.cross.togH });
       }
     }
@@ -550,16 +550,16 @@
     }
 
     if (!isOpen) {
-      /* 红色设置按钮: 锁定时射击它打开; 解锁时点击它打开 */
-      var pulse = this.locked ? 1 : 0.72 + 0.28 * Math.sin(performance.now() / 320);
-      rect(WP.red.x1, WP.red.y1, WP.red.x2, WP.red.y2, '#c73a31', 'rgba(255,255,255,0.4)', 0.95 * pulse);
-      text('⚙ 设置', (WP.red.x1 + WP.red.x2) / 2, (WP.red.y1 + WP.red.y2) / 2 + 1, 10, '#fff');
+      /* 红色设置按钮: 锁定时半透明不遮挡; 解锁时脉冲提示 */
+      var pulse = this.locked ? 0.45 : 0.72 + 0.28 * Math.sin(performance.now() / 320);
+      rect(WP.red.x1, WP.red.y1, WP.red.x2, WP.red.y2, '#c73a31', 'rgba(255,255,255,0.4)', pulse);
+      text('⚙ 设置', (WP.red.x1 + WP.red.x2) / 2, (WP.red.y1 + WP.red.y2) / 2 + 1, 9, 'rgba(255,255,255,0.95)');
       return;
     }
 
     /* 面板底 */
     rect(WP.x1, WP.y1, WP.x2, WP.y2, 'rgba(10,15,22,0.86)', 'rgba(232,179,57,0.4)', 1);
-    text('⚙ 设置面板', 52, 57, 8.5, '#e8b339', 'left');
+    text('⚙ 设置', 156, 59, 8, '#e8b339', 'left');
 
     /* 选项卡 + 关闭 */
     var tabOn = wu.tab === 'ball' ? 'rgba(232,179,57,0.28)' : 'rgba(28,38,52,0.85)';
@@ -585,13 +585,13 @@
       /* 出现方向 */
       for (i = 0; i < 5; i++) {
         var row = i < 3 ? 0 : 1;
-        var cx = 52 + (i < 3 ? i * 60 : (i - 3) * 60);
-        var wd = (i === 4) ? 72 : 52;
+        var cx = 158 + (i < 3 ? i * 44 : (i - 3) * 44);
+        var wd = (i === 4) ? 56 : 38;
         var cy = row === 0 ? WP.ball.dirY1 : WP.ball.dirY2;
         var on = this.dirs[i];
         rect(cx, cy, cx + wd, cy + WP.ball.dirH,
           on ? 'rgba(86,194,113,0.8)' : 'rgba(28,38,52,0.85)', 'rgba(120,150,190,0.4)', 1);
-        text(DIR_NAMES[i], cx + wd / 2, cy + WP.ball.dirH / 2, 8, on ? '#0c2e17' : '#9fb2cd');
+        text(DIR_NAMES[i], cx + wd / 2, cy + WP.ball.dirH / 2, 7, on ? '#0c2e17' : '#9fb2cd');
       }
       /* 滞留 */
       trackEl(WP.hoverTk, (this.hoverSecs - 0.5) / 9.5, this.hoverSecs.toFixed(1) + ' s', '滞留');
@@ -605,11 +605,11 @@
       }
       /* 样式 */
       for (i = 0; i < STYLE_LIST.length; i++) {
-        var sx = 52 + i * 60;
+        var sx = 158 + i * 44;
         var on = this.cross.style === STYLE_LIST[i][0];
         rect(sx, WP.cross.styleY, sx + WP.cross.styleW, WP.cross.styleY + WP.cross.styleH,
           on ? 'rgba(232,179,57,0.35)' : 'rgba(28,38,52,0.85)', 'rgba(120,150,190,0.4)', 1);
-        text(STYLE_LIST[i][1], sx + WP.cross.styleW / 2, WP.cross.styleY + WP.cross.styleH / 2, 8,
+        text(STYLE_LIST[i][1], sx + WP.cross.styleW / 2, WP.cross.styleY + WP.cross.styleH / 2, 7,
           on ? '#ffd75e' : '#9fb2cd');
       }
       /* 滑杆 */
@@ -618,11 +618,11 @@
       trackEl(WP.thickTk, (this.cross.thick - 1) / 5, '粗细 ' + this.cross.thick, '');
       /* 开关 */
       for (i = 0; i < TOG_LIST.length; i++) {
-        var tx = 52 + i * 70;
+        var tx = 158 + i * 40;
         var on2 = !!this.cross[TOG_LIST[i][0]];
         rect(tx, WP.cross.togY, tx + WP.cross.togW, WP.cross.togY + WP.cross.togH,
           on2 ? 'rgba(86,194,113,0.8)' : 'rgba(28,38,52,0.85)', 'rgba(120,150,190,0.4)', 1);
-        text(TOG_LIST[i][1], tx + WP.cross.togW / 2, WP.cross.togY + WP.cross.togH / 2, 8,
+        text(TOG_LIST[i][1], tx + WP.cross.togW / 2, WP.cross.togY + WP.cross.togH / 2, 7,
           on2 ? '#0c2e17' : '#9fb2cd');
       }
     }
@@ -716,7 +716,7 @@
       return { x: w.at > 0 ? w.at - off : w.at + off, y: rand(80, WALL_H - 24), z: rand(ZMIN + 60, ZMAX - 60) };
     }
     var xmin = -HALF_X + 60, xmax = HALF_X - 60;
-    if (w.at > 0) xmax = 60; /* 后墙: 避让墙面设置面板区域 */
+    if (w.at > 0) xmax = 110; /* 后墙: 避让墙面设置面板区域 */
     return { x: rand(xmin, xmax), y: rand(80, WALL_H - 24), z: w.at > 0 ? w.at - off : w.at + off };
   };
   AimGame.prototype.floatPoint = function () {
