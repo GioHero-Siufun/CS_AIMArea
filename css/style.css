@@ -261,13 +261,62 @@ input[type=range] { accent-color: var(--acc); height: 4px; cursor: pointer; }
 #aimBar input[type=range] { width: 110px; }
 #aimBar b { color: var(--txt); min-width: 30px; font-variant-numeric: tabular-nums; }
 
-/* ---- 墙面设置面板提示条 ---- */
-#wallCfgHint {
-  position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%);
-  background: rgba(9, 13, 19, .85); border: 1px solid var(--acc); border-radius: 20px;
-  color: var(--txt); font-size: 12.5px; padding: 7px 16px; z-index: 4;
-  backdrop-filter: blur(4px);
+/* ---- 小球设置面板 ---- */
+.cfg-toggle {
+  position: absolute; right: 14px; top: 108px; z-index: 4;
+  background: #c73a31; border: 1px solid #8f2a24; border-radius: 10px;
+  color: #fff; padding: 7px 13px; font-size: 12.5px; cursor: pointer;
+  box-shadow: 0 2px 12px rgba(226, 89, 78, .35);
+  transition: all .15s;
 }
+.cfg-toggle:hover { background: #e2594e; }
+.cfg-toggle.ready { box-shadow: 0 0 0 2px rgba(255, 255, 255, .25), 0 2px 12px rgba(226, 89, 78, .5); animation: cfg-pulse 1.6s ease-in-out infinite; }
+@keyframes cfg-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(255, 255, 255, .2), 0 2px 12px rgba(226, 89, 78, .45); }
+  50% { box-shadow: 0 0 0 4px rgba(255, 255, 255, .35), 0 2px 16px rgba(226, 89, 78, .65); }
+}
+#aimCfg {
+  position: absolute; right: 14px; top: 152px; width: 236px;
+  max-height: calc(100% - 170px); overflow-y: auto;
+  background: rgba(9, 13, 19, .9); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; font-size: 12px; z-index: 3; backdrop-filter: blur(4px);
+  opacity: .55; transition: opacity .2s, box-shadow .2s;
+}
+#aimCfg.ready { opacity: 1; box-shadow: 0 0 0 1px rgba(232, 179, 57, .5), 0 0 18px rgba(232, 179, 57, .18); }
+#aimCfg h4 {
+  margin: 8px 0 6px; font-size: 11px; color: var(--dim);
+  letter-spacing: 1px; text-transform: uppercase;
+  border-bottom: 1px solid var(--line); padding-bottom: 4px;
+}
+#aimCfg h4:first-child { margin-top: 0; }
+.cfg-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.cfg-row label { flex: none; color: var(--dim); }
+.cfg-row b { color: var(--acc); min-width: 34px; font-variant-numeric: tabular-nums; }
+.cfg-row input[type=range] { flex: 1; width: auto; }
+.swatches { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.aim-sw, .ch-sw {
+  width: 22px; height: 22px; border-radius: 50%; padding: 0;
+  border: 1px solid rgba(255, 255, 255, .28); cursor: pointer; flex: none;
+}
+.aim-sw.active, .ch-sw.active { outline: 2px solid #fff; outline-offset: 1px; }
+#aimCfg input[type=color] {
+  width: 28px; height: 26px; border: 1px solid var(--line); border-radius: 6px;
+  background: none; cursor: pointer; padding: 0 2px;
+}
+.dirs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; margin-bottom: 8px; }
+.dirs .chk { font-size: 11.5px; }
+.mini-seg { display: flex; flex: 1; }
+.mini-seg button {
+  flex: 1; padding: 4px 0; background: var(--panel2);
+  border: 1px solid var(--line); border-right-width: 0;
+  color: var(--dim); cursor: pointer; font-size: 11.5px;
+}
+.mini-seg button:first-child { border-radius: 6px 0 0 6px; }
+.mini-seg button:last-child { border-right-width: 1px; border-radius: 0 6px 6px 0; }
+.mini-seg button.active { background: #24344a; color: #fff; border-color: #3a4c66; }
+.chr { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-bottom: 6px; }
+.cfg-note { color: var(--dim); font-size: 11px; line-height: 1.5; margin: 6px 0 0; }
+.cfg-note b { color: var(--txt); }
 
 /* ---- 页脚 ---- */
 footer {

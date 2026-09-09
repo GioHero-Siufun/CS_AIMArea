@@ -83,31 +83,6 @@
     return 'rgb(' + r + ',' + g + ',' + b + ')';
   }
 
-  /* ---- 墙面设置面板几何 (后墙, 注意: 世界y向上, 面板顶部=大y) ----
-   * 面板整体可用鼠标中键拖动(wpOff), 红按钮与面板一起移动。 */
-  var WP = {
-    z: 0,
-    x1: 110, x2: 322, y1: 32, y2: 188,
-    red: { id: 'red', x1: 252, y1: 86, x2: 304, y2: 110 },
-    tabBall: { id: 'tab-ball', x1: 224, y1: 162, x2: 260, y2: 184 },
-    tabCross: { id: 'tab-cross', x1: 262, y1: 162, x2: 298, y2: 184 },
-    close: { id: 'close', x1: 301, y1: 162, x2: 318, y2: 184 },
-    sizeTk: { id: 'size', x1: 160, y1: 148, x2: 290, y2: 162 },
-    hoverTk: { id: 'hover', x1: 160, y1: 34, x2: 290, y2: 48 },
-    gapTk: { id: 'gap', x1: 160, y1: 92, x2: 290, y2: 106 },
-    lenTk: { id: 'len', x1: 160, y1: 72, x2: 290, y2: 86 },
-    thickTk: { id: 'thick', x1: 160, y1: 52, x2: 290, y2: 66 },
-    ball: { cx0: 118, gap: 28, sz: 20, colorY: 118, dirY1: 92, dirY2: 66, dirH: 18 },
-    cross: { cx0: 118, gap: 24, sz: 16, colorY: 144, styleY: 116, styleH: 18, styleW: 46,
-      togY: 34, togH: 14, togW: 48 },
-    btnC: { x: 278, y: 98 }
-  };
-  WP.z = ZMAX - 0.6;
-  var BALL_COLORS = ['#e8b339', '#7fd8ff', '#8ae99a', '#f27cc4', '#ffffff', '#e2594e'];
-  var DIR_NAMES = ['前', '后', '左', '右', '空中'];
-  var STYLE_LIST = [['cross', '十字'], ['t', 'T形'], ['dot', '点']];
-  var TOG_LIST = [['dot', '点'], ['outline', '描边'], ['dynamic', '动态']];
-
   function AimGame() {
     var self = this;
     this.canvas = $('aimCanvas');
@@ -122,7 +97,17 @@
       endAgain: $('aimEndAgain'), endClose: $('aimEndClose'),
       sens: $('aim-sens'), sensVal: $('aim-sensVal'), dpi: $('aim-dpi'), cm360: $('aim-cm360'),
       fov: $('aim-fov'), fovVal: $('aim-fovVal'), move: $('aim-move'),
-      wallHint: $('wallCfgHint'),
+      ballR: $('aim-ballR'), ballRVal: $('aim-ballRVal'),
+      ballColor: $('aim-ballColor'), swatches: document.querySelectorAll('.aim-sw'),
+      hover: $('aim-hover'), hoverVal: $('aim-hoverVal'),
+      dirFront: $('dir-front'), dirBack: $('dir-back'),
+      dirLeft: $('dir-left'), dirRight: $('dir-right'), dirFloat: $('dir-float'),
+      cfgBtn: $('aimCfgBtn'), aimCfg: $('aimCfg'),
+      chBtns: document.querySelectorAll('.ch-sw'), styleBtns: document.querySelectorAll('#ch-style button'),
+      chGap: $('ch-gap'), chGapVal: $('ch-gapVal'),
+      chLen: $('ch-len'), chLenVal: $('ch-lenVal'),
+      chThick: $('ch-thick'), chThickVal: $('ch-thickVal'),
+      chDot: $('ch-dot'), chOutline: $('ch-outline'), chDynamic: $('ch-dynamic'),
       modeBtns: document.querySelectorAll('.mode-btn')
     };
     this.sets = S.settings.aim;
@@ -165,9 +150,7 @@
     this.mouseX = -1; this.mouseY = -1;
     this.w = 0; this.h = 0; this.dpr = 1;
     this.cross = S.settings.aim.cross;
-    this.wallUI = { open: false, tab: 'ball', drag: null, hover: null, btnDrag: false };
-    var wo = (S.settings.aim.wpOff && S.settings.aim.wpOff) || {};
-    this.wpOff = { x: +wo.x || 0, y: +wo.y || 0 };
+    this.cfgOpen = false;
 
     this.bindEvents();
     this.resize();
@@ -210,49 +193,21 @@
 
     canvas.addEventListener('mousemove', function (e) {
       if (self.locked) {
-        if (self.wallUI.btnDrag) {
-          /* 中键拖动(锁定态): 用鼠标增量移动按钮/面板 */
-          var dz = WP.z - self.camVec().z;
-          var cg = 0.022 * self.sens * DEG;
-          self.moveButton(e.movementX * cg * dz, -e.movementY * cg * dz);
-          return;
-        }
-        var cgv = 0.022 * self.sens * DEG;
-        self.yaw += e.movementX * cgv;
-        self.pitch -= e.movementY * cgv;
+        var cg = 0.022 * self.sens * DEG;
+        self.yaw += e.movementX * cg;
+        self.pitch -= e.movementY * cg;
         self.pitch = clamp(self.pitch, -87 * DEG, 87 * DEG);
       } else {
         var r = canvas.getBoundingClientRect();
         self.mouseX = e.clientX - r.left;
         self.mouseY = e.clientY - r.top;
-        if (self.wallUI.btnDrag) {
-          var wpb = self.wallHitFromMouse();
-          if (wpb) self.moveButtonTo(wpb.x, wpb.y);
-          return;
-        }
-        var hov = self.uiHitFromMouse();
-        self.wallUI.hover = hov ? hov.id : null;
-        canvas.style.cursor = hov ? 'pointer' : 'default';
       }
     });
     canvas.addEventListener('mousedown', function (e) {
       canvas.blur();
-      if (e.button === 1) { /* 鼠标中键: 拖动设置按钮/面板 */
-        e.preventDefault();
-        self.wallUI.btnDrag = true;
-        self.canvas.style.cursor = 'grabbing';
-        if (!self.locked) {
-          var wpb = self.wallHitFromMouse();
-          if (wpb) self.moveButtonTo(wpb.x, wpb.y);
-        }
-        return;
-      }
       if (e.button !== 0 && e.button !== 2) return;
       if (!self.locked) {
-        if (self.endOpen) return; /* 结算遮罩打开时不要误操作 */
-        var uiEl = self.uiHitFromMouse();
-        if (uiEl) { self.uiPress(uiEl); return; } /* 墙面设置面板交互 */
-        self.lockPointer();
+        if (!self.endOpen) self.lockPointer(); /* 结算遮罩打开时不要误重新锁定 */
         return;
       }
       e.preventDefault();
@@ -260,30 +215,9 @@
     });
     canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
-    /* 墙面面板: 滑杆拖动 & 拖拽结束 */
-    window.addEventListener('mousemove', function (e) {
-      if (!self.wallUI.drag) return;
-      var r = canvas.getBoundingClientRect();
-      var b = basis(self.yaw, self.pitch);
-      var mx = e.clientX - r.left, my = e.clientY - r.top;
-      var dir = self.aimDirAt(mx, my, b);
-      var wp = self.wallHitFromDir(dir);
-      if (wp) self.uiDragSet(self.wallUI.drag, wp.x);
-    });
-    window.addEventListener('mouseup', function () {
-      if (self.wallUI.drag) { self.wallUI.drag = null; S.saveSettings(); }
-      if (self.wallUI.btnDrag) {
-        self.wallUI.btnDrag = false;
-        self.canvas.style.cursor = 'default';
-        S.saveSettings();
-        S.SFX.ui();
-      }
-    });
-
     document.addEventListener('pointerlockchange', function () {
       self.locked = document.pointerLockElement === canvas;
       if (!self.locked) self.keyUpAll();
-      if (self.locked) self.wallUI.open = false; /* 锁定即收起墙面面板 */
       self.updateOverlays();
     });
     document.addEventListener('pointerlockerror', function () {
@@ -356,334 +290,164 @@
       S.saveSettings();
     });
 
+    /* ---- 小球设置 ---- */
+    this.els.ballR.value = String(this.ballR);
+    this.els.ballRVal.textContent = String(this.ballR);
+    this.els.ballColor.value = this.ballColor;
+    this.els.hover.value = String(this.hoverSecs);
+    this.els.hoverVal.textContent = this.hoverSecs.toFixed(1);
+    this.els.dirFront.checked = this.dirs[0];
+    this.els.dirBack.checked = this.dirs[1];
+    this.els.dirLeft.checked = this.dirs[2];
+    this.els.dirRight.checked = this.dirs[3];
+    this.els.dirFloat.checked = this.dirs[4];
+    for (var swi = 0; swi < this.els.swatches.length; swi++) {
+      this.els.swatches[swi].classList.toggle('active',
+        this.els.swatches[swi].getAttribute('data-c').toLowerCase() === this.ballColor.toLowerCase());
+    }
+
+    this.els.ballR.addEventListener('input', function () {
+      self.ballR = +self.els.ballR.value;
+      self.els.ballRVal.textContent = String(self.ballR);
+      self.sets.ballR = self.ballR;
+      for (var i = 0; i < self.balls.length; i++) self.balls[i].r = self.ballR;
+      S.saveSettings();
+    });
+    function setColor(c) {
+      self.ballColor = c;
+      self.els.ballColor.value = c;
+      self.applyBallStyle();
+      self.sets.ballColor = c;
+      for (var i = 0; i < self.els.swatches.length; i++) {
+        self.els.swatches[i].classList.toggle('active',
+          self.els.swatches[i].getAttribute('data-c').toLowerCase() === c.toLowerCase());
+      }
+      S.saveSettings();
+    }
+    for (var swj = 0; swj < this.els.swatches.length; swj++) {
+      (function (btn) {
+        btn.addEventListener('click', function () {
+          btn.blur();
+          setColor(btn.getAttribute('data-c'));
+          S.SFX.ui();
+        });
+      })(this.els.swatches[swj]);
+    }
+    this.els.ballColor.addEventListener('input', function () {
+      setColor(self.els.ballColor.value);
+    });
+    this.els.hover.addEventListener('input', function () {
+      self.hoverSecs = +self.els.hover.value;
+      self.els.hoverVal.textContent = self.hoverSecs.toFixed(1);
+      self.sets.hoverSecs = self.hoverSecs;
+      S.saveSettings();
+    });
+    function readDirs() {
+      self.dirs = [
+        self.els.dirFront.checked, self.els.dirBack.checked,
+        self.els.dirLeft.checked, self.els.dirRight.checked,
+        self.els.dirFloat.checked
+      ];
+      self.sets.dirs = self.dirs.slice();
+      S.saveSettings();
+      self.respawnAll(); /* 立即映射到场景: 按新方向重掷 */
+    }
+    var dirBoxes = [this.els.dirFront, this.els.dirBack, this.els.dirLeft, this.els.dirRight, this.els.dirFloat];
+    for (var dbi = 0; dbi < dirBoxes.length; dbi++) {
+      dirBoxes[dbi].addEventListener('change', function () { readDirs(); S.SFX.ui(); });
+    }
+
+    /* ---- 设置面板展开/收起 + 准星设置 ---- */
+    this.els.cfgBtn.addEventListener('click', function () {
+      self.els.cfgBtn.blur();
+      self.cfgOpen = !self.cfgOpen;
+      self.renderCfgState();
+      S.SFX.ui();
+    });
+
+    var cross = this.cross;
+    this.els.chGap.value = String(cross.gap);
+    this.els.chLen.value = String(cross.len);
+    this.els.chThick.value = String(cross.thick);
+    this.els.chDot.checked = !!cross.dot;
+    this.els.chOutline.checked = !!cross.outline;
+    this.els.chDynamic.checked = !!cross.dynamic;
+    this.els.chGapVal.textContent = String(cross.gap);
+    this.els.chLenVal.textContent = String(cross.len);
+    this.els.chThickVal.textContent = String(cross.thick);
+    function syncChSwatches() {
+      var want = cross.color.toLowerCase();
+      for (var i = 0; i < self.els.chBtns.length; i++) {
+        self.els.chBtns[i].classList.toggle('active',
+          self.els.chBtns[i].getAttribute('data-c').toLowerCase() === want);
+      }
+    }
+    syncChSwatches();
+    for (var ci = 0; ci < this.els.chBtns.length; ci++) {
+      (function (btn) {
+        btn.addEventListener('click', function () {
+          btn.blur();
+          cross.color = btn.getAttribute('data-c');
+          syncChSwatches();
+          S.saveSettings();
+          S.SFX.ui();
+        });
+      })(this.els.chBtns[ci]);
+    }
+    var styleBtns = this.els.styleBtns;
+    for (var si = 0; si < styleBtns.length; si++) {
+      (function (btn) {
+        btn.addEventListener('click', function () {
+          btn.blur();
+          cross.style = btn.getAttribute('data-s');
+          for (var k = 0; k < styleBtns.length; k++) {
+            styleBtns[k].classList.toggle('active', styleBtns[k] === btn);
+          }
+          S.saveSettings();
+          S.SFX.ui();
+        });
+      })(styleBtns[si]);
+    }
+    this.els.chGap.addEventListener('input', function () {
+      cross.gap = +self.els.chGap.value;
+      self.els.chGapVal.textContent = String(cross.gap);
+      S.saveSettings();
+    });
+    this.els.chLen.addEventListener('input', function () {
+      cross.len = +self.els.chLen.value;
+      self.els.chLenVal.textContent = String(cross.len);
+      S.saveSettings();
+    });
+    this.els.chThick.addEventListener('input', function () {
+      cross.thick = +self.els.chThick.value;
+      self.els.chThickVal.textContent = String(cross.thick);
+      S.saveSettings();
+    });
+    function bindChk(box, key) {
+      box.addEventListener('change', function () {
+        cross[key] = box.checked;
+        S.saveSettings();
+        S.SFX.ui();
+      });
+    }
+    bindChk(this.els.chDot, 'dot');
+    bindChk(this.els.chOutline, 'outline');
+    bindChk(this.els.chDynamic, 'dynamic');
   };
 
-  /* ============ 墙面设置面板 (场景内 3D UI, 射击红色按钮展开) ============ */
+  /* 设置面板状态: 锁定时收起+变暗, Esc 解锁后按钮脉冲提示、面板增亮 */
+  AimGame.prototype.renderCfgState = function () {
+    if (this.locked) this.cfgOpen = false;
+    this.els.cfgBtn.classList.toggle('ready', !this.locked);
+    this.els.cfgBtn.textContent = this.cfgOpen ? '✕ 收起' : '⚙ 设置';
+    this.els.aimCfg.hidden = !this.cfgOpen;
+    this.els.aimCfg.classList.toggle('ready', !this.locked && this.cfgOpen);
+  };
+
   AimGame.prototype.applyBallStyle = function () {
     var c = this.ballColor || '#e8b339';
     this.ballCss = { light: hexLerp(c, 255, 0.45), base: c, dark: hexLerp(c, 0, 0.45) };
     this.ballRgb = hexRgb(c);
-  };
-  AimGame.prototype.setBallSize = function (v) {
-    this.ballR = v;
-    this.sets.ballR = v;
-    for (var i = 0; i < this.balls.length; i++) this.balls[i].r = v;
-    S.saveSettings();
-  };
-  AimGame.prototype.setBallColor = function (c) {
-    this.ballColor = c;
-    this.sets.ballColor = c;
-    this.applyBallStyle();
-    S.saveSettings();
-  };
-  AimGame.prototype.aimDirAt = function (mx, my, b) {
-    var f = this.focal();
-    var sx = (mx - this.w / 2) / f;
-    var sy = (this.h / 2 - my) / f;
-    var d = {
-      x: b.fwd.x + b.right.x * sx + b.up.x * sy,
-      y: b.fwd.y + b.right.y * sx + b.up.y * sy,
-      z: b.fwd.z + b.right.z * sx + b.up.z * sy
-    };
-    var l = Math.hypot(d.x, d.y, d.z) || 1;
-    return { x: d.x / l, y: d.y / l, z: d.z / l };
-  };
-  AimGame.prototype.wallHitFromDir = function (dir, cam) {
-    cam = cam || this.camVec();
-    var zp = WP.z;
-    if (dir.z < 1e-6) return null;
-    var t = (zp - cam.z) / dir.z;
-    if (t < NEAR) return null;
-    return { x: cam.x + dir.x * t, y: cam.y + dir.y * t, t: t };
-  };
-  AimGame.prototype.wallHitFromMouse = function () {
-    var b = basis(this.yaw, this.pitch);
-    return this.wallHitFromDir(this.aimDir(b));
-  };
-
-  AimGame.prototype.uiElems = function () {
-    /* 返回原始(基准)布局, 偏移在 uiHit 中扣除 */
-    var list;
-    if (!this.wallUI.open) return [WP.red];
-    list = [WP.tabBall, WP.tabCross, WP.close];
-    var i, x, wd;
-    if (this.wallUI.tab === 'ball') {
-      list.push(WP.sizeTk, WP.hoverTk);
-      for (i = 0; i < BALL_COLORS.length; i++) {
-        x = WP.ball.cx0 + i * WP.ball.gap;
-        list.push({ id: 'c-' + BALL_COLORS[i], x1: x, y1: WP.ball.colorY, x2: x + WP.ball.sz, y2: WP.ball.colorY + WP.ball.sz });
-      }
-      for (i = 0; i < 5; i++) {
-        var cx = 118 + (i < 3 ? i * 56 : (i - 3) * 56);
-        wd = (i === 4) ? 72 : 48;
-        var cy = (i < 3) ? WP.ball.dirY1 : WP.ball.dirY2;
-        list.push({ id: 'dir-' + i, x1: cx, y1: cy, x2: cx + wd, y2: cy + WP.ball.dirH });
-      }
-    } else {
-      for (i = 0; i < S.CROSS_COLORS.length; i++) {
-        x = WP.cross.cx0 + i * WP.cross.gap;
-        list.push({ id: 'chc-' + i, x1: x, y1: WP.cross.colorY, x2: x + WP.cross.sz, y2: WP.cross.colorY + WP.cross.sz });
-      }
-      for (i = 0; i < STYLE_LIST.length; i++) {
-        var sx2 = 118 + i * 54;
-        list.push({ id: 'st-' + STYLE_LIST[i][0], x1: sx2, y1: WP.cross.styleY, x2: sx2 + WP.cross.styleW, y2: WP.cross.styleY + WP.cross.styleH });
-      }
-      list.push(WP.gapTk, WP.lenTk, WP.thickTk);
-      for (i = 0; i < TOG_LIST.length; i++) {
-        var tx = 118 + i * 56;
-        list.push({ id: 'tg-' + TOG_LIST[i][0], x1: tx, y1: WP.cross.togY, x2: tx + WP.cross.togW, y2: WP.cross.togY + WP.cross.togH });
-      }
-    }
-    return list;
-  };
-
-  AimGame.prototype.uiHit = function (x, y) {
-    x -= this.wpOff.x;
-    y -= this.wpOff.y;
-    var list = this.uiElems();
-    for (var i = list.length - 1; i >= 0; i--) {
-      var el = list[i];
-      if (x >= el.x1 && x <= el.x2 && y >= el.y1 && y <= el.y2) return el;
-    }
-    return null;
-  };
-  AimGame.prototype.uiHitFromMouse = function () {
-    var wp = this.wallHitFromMouse();
-    if (!wp) return null;
-    var el = this.uiHit(wp.x, wp.y);
-    this.wallUI.lastP = wp;
-    return el;
-  };
-
-  AimGame.prototype.openWallUI = function () {
-    this.wallUI.open = true;
-    if (document.pointerLockElement) document.exitPointerLock();
-    this.canvas.style.cursor = 'default';
-    this.updateOverlays();
-    S.SFX.ui();
-  };
-  AimGame.prototype.closeWallUI = function () {
-    this.wallUI.open = false;
-    this.wallUI.drag = null;
-    this.updateOverlays();
-    S.SFX.ui();
-  };
-
-  AimGame.prototype.moveButton = function (dx, dy) {
-    this.wpOff.x = clamp(this.wpOff.x + dx, -430, -4);
-    this.wpOff.y = clamp(this.wpOff.y + dy, -32, 10);
-  };
-  AimGame.prototype.moveButtonTo = function (x, y) {
-    this.wpOff.x = clamp(x - WP.btnC.x, -430, -4);
-    this.wpOff.y = clamp(y - WP.btnC.y, -32, 10);
-  };
-
-  AimGame.prototype.uiPress = function (el) {
-    var self = this;
-    var w = this.wallUI;
-    var x = w.lastP ? w.lastP.x : 0;
-    if (el.id === 'red') { w.open ? this.closeWallUI() : this.openWallUI(); return; }
-    if (el.id === 'close') { this.closeWallUI(); return; }
-    if (el.id === 'tab-ball') { w.tab = 'ball'; S.SFX.ui(); return; }
-    if (el.id === 'tab-cross') { w.tab = 'cross'; S.SFX.ui(); return; }
-    if (el.id.indexOf('c-') === 0) { this.setBallColor(el.id.slice(2)); S.SFX.ui(); return; }
-    if (el.id.indexOf('dir-') === 0) {
-      var di = +el.id.slice(4);
-      this.dirs[di] = !this.dirs[di];
-      this.sets.dirs = this.dirs.slice();
-      S.saveSettings();
-      this.respawnAll();
-      S.SFX.ui();
-      return;
-    }
-    if (el.id.indexOf('chc-') === 0) {
-      this.cross.color = S.CROSS_COLORS[+el.id.slice(4)].c;
-      S.saveSettings();
-      S.SFX.ui();
-      return;
-    }
-    if (el.id.indexOf('st-') === 0) {
-      this.cross.style = el.id.slice(3);
-      S.saveSettings();
-      S.SFX.ui();
-      return;
-    }
-    if (el.id.indexOf('tg-') === 0) {
-      this.cross[el.id.slice(3)] = !this.cross[el.id.slice(3)];
-      S.saveSettings();
-      S.SFX.ui();
-      return;
-    }
-    if (this.trackRange(el.id)) {
-      w.drag = el.id;
-      this.uiDragSet(el.id, x);
-    }
-  };
-  AimGame.prototype.trackRange = function (id) {
-    var map = {
-      size: { min: 6, max: 32, tk: WP.sizeTk },
-      hover: { min: 0.5, max: 10, tk: WP.hoverTk },
-      gap: { min: 0, max: 20, tk: WP.gapTk },
-      len: { min: 1, max: 16, tk: WP.lenTk },
-      thick: { min: 1, max: 6, tk: WP.thickTk }
-    };
-    return map[id] || null;
-  };
-  AimGame.prototype.uiDragSet = function (id, x) {
-    var m = this.trackRange(id);
-    if (!m) return;
-    var frac = clamp((x - m.tk.x1) / (m.tk.x2 - m.tk.x1), 0, 1);
-    var v = m.min + frac * (m.max - m.min);
-    if (id === 'size') { this.setBallSize(Math.round(v)); return; }
-    if (id === 'hover') { this.hoverSecs = Math.round(v * 2) / 2; this.sets.hoverSecs = this.hoverSecs; S.saveSettings(); return; }
-    this.cross[id] = Math.round(v);
-    S.saveSettings();
-  };
-
-  /* ---- 渲染墙面设置面板 ---- */
-  AimGame.prototype.drawWallUI = function (cam, b, f, w, h) {
-    var ctx = this.ctx;
-    var wu = this.wallUI;
-    var isOpen = wu.open;
-    var ox = this.wpOff.x, oy = this.wpOff.y;
-    function P(x, y) {
-      var c = toCam({ x: x + ox, y: y + oy, z: WP.z }, cam, b);
-      if (c.z < NEAR) return null;
-      var s = project(c, f, w, h);
-      return { x: s.x, y: s.y, d: c.z };
-    }
-    function rect(x1, y1, x2, y2, fill, stroke, alpha) {
-      var a = P(x1, y1), c = P(x2, y2);
-      if (!a || !c) return null;
-      ctx.save();
-      ctx.globalAlpha = alpha == null ? 1 : alpha;
-      ctx.fillStyle = fill;
-      ctx.fillRect(a.x, a.y, c.x - a.x, c.y - a.y);
-      if (stroke) {
-        ctx.strokeStyle = stroke;
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(a.x, a.y, c.x - a.x, c.y - a.y);
-      }
-      ctx.restore();
-      return { a: a, c: c };
-    }
-    function text(t, x, y, px, color, align) {
-      var p = P(x, y);
-      if (!p) return;
-      var fs = clamp(px * f / p.d, 7, 26);
-      ctx.font = fs + 'px "Segoe UI", "Microsoft YaHei", sans-serif';
-      ctx.fillStyle = color;
-      ctx.textAlign = align || 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(t, p.x, p.y);
-      ctx.textAlign = 'start';
-      ctx.textBaseline = 'alphabetic';
-    }
-    function trackEl(tk, frac, valText, label) {
-      rect(tk.x1, tk.y1, tk.x2, tk.y2, 'rgba(0,0,0,0.45)', 'rgba(120,150,190,0.3)', 1);
-      var fx2 = tk.x1 + frac * (tk.x2 - tk.x1);
-      rect(tk.x1, tk.y1 + 2, fx2, tk.y2 - 2, '#e8b339', null, 0.9);
-      var p = P(fx2, (tk.y1 + tk.y2) / 2);
-      if (p) {
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(2.5, (f * (tk.y2 - tk.y1) / p.d) * 0.45), 0, TAU);
-        ctx.fill();
-      }
-      if (label) text(label, tk.x1 - 10, (tk.y1 + tk.y2) / 2, 9, '#9fb2cd', 'right');
-      if (valText) text(valText, tk.x2 + 10, (tk.y1 + tk.y2) / 2, 9, '#ffd75e', 'left');
-    }
-
-    if (!isOpen) {
-      /* 红色设置按钮: 锁定时半透明不遮挡; 解锁时脉冲提示 */
-      var pulse = this.locked ? 0.45 : 0.72 + 0.28 * Math.sin(performance.now() / 320);
-      rect(WP.red.x1, WP.red.y1, WP.red.x2, WP.red.y2, '#c73a31', 'rgba(255,255,255,0.4)', pulse);
-      text('⚙ 设置', (WP.red.x1 + WP.red.x2) / 2, (WP.red.y1 + WP.red.y2) / 2 + 1, 9, 'rgba(255,255,255,0.95)');
-      return;
-    }
-
-    /* 面板底 (世界y向上: y2 是顶部) */
-    rect(WP.x1, WP.y1, WP.x2, WP.y2, 'rgba(10,15,22,0.88)', 'rgba(232,179,57,0.45)', 1);
-    text('⚙ 设置', 118, 173, 8.5, '#e8b339', 'left');
-
-    /* 选项卡 + 关闭 (顶部) */
-    var tabOn = wu.tab === 'ball' ? 'rgba(232,179,57,0.28)' : 'rgba(28,38,52,0.85)';
-    rect(WP.tabBall.x1, WP.tabBall.y1, WP.tabBall.x2, WP.tabBall.y2, tabOn, 'rgba(120,150,190,0.4)', 1);
-    text('小球', (WP.tabBall.x1 + WP.tabBall.x2) / 2, (WP.tabBall.y1 + WP.tabBall.y2) / 2, 8.5,
-      wu.tab === 'ball' ? '#ffd75e' : '#9fb2cd');
-    var tabOn2 = wu.tab === 'cross' ? 'rgba(232,179,57,0.28)' : 'rgba(28,38,52,0.85)';
-    rect(WP.tabCross.x1, WP.tabCross.y1, WP.tabCross.x2, WP.tabCross.y2, tabOn2, 'rgba(120,150,190,0.4)', 1);
-    text('准星', (WP.tabCross.x1 + WP.tabCross.x2) / 2, (WP.tabCross.y1 + WP.tabCross.y2) / 2, 8.5,
-      wu.tab === 'cross' ? '#ffd75e' : '#9fb2cd');
-    rect(WP.close.x1, WP.close.y1, WP.close.x2, WP.close.y2, '#b23f38', 'rgba(255,255,255,0.35)', 0.95);
-    text('✕', (WP.close.x1 + WP.close.x2) / 2, (WP.close.y1 + WP.close.y2) / 2, 9, '#fff');
-
-    var i, x;
-    if (wu.tab === 'ball') {
-      /* 大小 */
-      trackEl(WP.sizeTk, (this.ballR - 6) / 26, this.ballR + ' u', '大小');
-      /* 颜色 */
-      for (i = 0; i < BALL_COLORS.length; i++) {
-        x = WP.ball.cx0 + i * WP.ball.gap;
-        var active = BALL_COLORS[i].toLowerCase() === this.ballColor.toLowerCase();
-        rect(x, WP.ball.colorY, x + WP.ball.sz, WP.ball.colorY + WP.ball.sz,
-          BALL_COLORS[i], active ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.25)', 1);
-      }
-      /* 出现方向 */
-      for (i = 0; i < 5; i++) {
-        var cx = 118 + (i < 3 ? i * 56 : (i - 3) * 56);
-        var wd = (i === 4) ? 72 : 48;
-        var cy = (i < 3) ? WP.ball.dirY1 : WP.ball.dirY2;
-        var on = this.dirs[i];
-        rect(cx, cy, cx + wd, cy + WP.ball.dirH,
-          on ? 'rgba(86,194,113,0.8)' : 'rgba(28,38,52,0.85)', 'rgba(120,150,190,0.4)', 1);
-        text(DIR_NAMES[i], cx + wd / 2, cy + WP.ball.dirH / 2, 7.5, on ? '#0c2e17' : '#9fb2cd');
-      }
-      /* 滞留 */
-      trackEl(WP.hoverTk, (this.hoverSecs - 0.5) / 9.5, this.hoverSecs.toFixed(1) + ' s', '滞留');
-    } else {
-      /* 准星颜色 */
-      for (i = 0; i < S.CROSS_COLORS.length; i++) {
-        x = WP.cross.cx0 + i * WP.cross.gap;
-        var act = S.CROSS_COLORS[i].c.toLowerCase() === this.cross.color.toLowerCase();
-        rect(x, WP.cross.colorY, x + WP.cross.sz, WP.cross.colorY + WP.cross.sz,
-          S.CROSS_COLORS[i].c, act ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.25)', 1);
-      }
-      /* 样式 */
-      for (i = 0; i < STYLE_LIST.length; i++) {
-        var sx = 118 + i * 54;
-        var on = this.cross.style === STYLE_LIST[i][0];
-        rect(sx, WP.cross.styleY, sx + WP.cross.styleW, WP.cross.styleY + WP.cross.styleH,
-          on ? 'rgba(232,179,57,0.35)' : 'rgba(28,38,52,0.85)', 'rgba(120,150,190,0.4)', 1);
-        text(STYLE_LIST[i][1], sx + WP.cross.styleW / 2, WP.cross.styleY + WP.cross.styleH / 2, 7.5,
-          on ? '#ffd75e' : '#9fb2cd');
-      }
-      /* 滑杆 */
-      trackEl(WP.gapTk, this.cross.gap / 20, '间隙 ' + this.cross.gap, '');
-      trackEl(WP.lenTk, (this.cross.len - 1) / 15, '长度 ' + this.cross.len, '');
-      trackEl(WP.thickTk, (this.cross.thick - 1) / 5, '粗细 ' + this.cross.thick, '');
-      /* 开关 */
-      for (i = 0; i < TOG_LIST.length; i++) {
-        var tx = 118 + i * 56;
-        var on2 = !!this.cross[TOG_LIST[i][0]];
-        rect(tx, WP.cross.togY, tx + WP.cross.togW, WP.cross.togY + WP.cross.togH,
-          on2 ? 'rgba(86,194,113,0.8)' : 'rgba(28,38,52,0.85)', 'rgba(120,150,190,0.4)', 1);
-        text(TOG_LIST[i][1], tx + WP.cross.togW / 2, WP.cross.togY + WP.cross.togH / 2, 7.5,
-          on2 ? '#0c2e17' : '#9fb2cd');
-      }
-    }
-
-    /* 悬停高亮 */
-    if (!this.locked && wu.hover && !wu.drag) {
-      var elems = this.uiElems();
-      for (var hi = 0; hi < elems.length; hi++) {
-        if (elems[hi].id === wu.hover) {
-          rect(elems[hi].x1 - 2, elems[hi].y1 - 2, elems[hi].x2 + 2, elems[hi].y2 + 2,
-            'rgba(255,255,255,0.06)', 'rgba(255,255,255,0.85)', 1);
-          break;
-        }
-      }
-    }
   };
 
   AimGame.prototype.applyControls = function () {
@@ -724,9 +488,9 @@
   };
 
   AimGame.prototype.updateOverlays = function () {
-    var showLock = !this.locked && !this.endOpen && !this.wallUI.open;
+    var showLock = !this.locked && !this.endOpen;
     this.els.lockOverlay.hidden = !showLock;
-    this.els.wallHint.hidden = !(!this.locked && !this.endOpen && this.wallUI.open);
+    this.renderCfgState();
   };
   AimGame.prototype.hideEnd = function () {
     this.els.end.hidden = true;
@@ -761,18 +525,7 @@
     if (w.type === 'x') {
       return { x: w.at > 0 ? w.at - off : w.at + off, y: rand(80, WALL_H - 24), z: rand(ZMIN + 60, ZMAX - 60) };
     }
-    var xmin = -HALF_X + 60, xmax = HALF_X - 60;
-    if (w.at > 0) {
-      /* 后墙: 避让墙面设置面板当前所在区域 */
-      var px1 = WP.x1 + this.wpOff.x - 30, px2 = WP.x2 + this.wpOff.x + 30;
-      for (var tr = 0; tr < 12; tr++) {
-        var tryX = rand(xmin, 260);
-        if (tryX < px1 || tryX > px2 || tr === 11) return {
-          x: tryX, y: rand(80, WALL_H - 24), z: w.at - off
-        };
-      }
-    }
-    return { x: rand(xmin, xmax), y: rand(80, WALL_H - 24), z: w.at > 0 ? w.at - off : w.at + off };
+    return { x: rand(-HALF_X + 60, HALF_X - 60), y: rand(80, WALL_H - 24), z: w.at > 0 ? w.at - off : w.at + off };
   };
   AimGame.prototype.floatPoint = function () {
     for (var i = 0; i < 20; i++) {
@@ -948,35 +701,21 @@
   AimGame.prototype.shoot = function () {
     if (!this.locked || this.over || this.cooldown > 0) return;
     this.cooldown = 0.09;
-
-    var b = basis(this.yaw, this.pitch);
-    var dir = this.aimDir(b);
-    var cam = this.camVec();
-
-    /* 射中墙面「设置」按钮 → 展开设置面板(且退出锁定以便鼠标操作) */
-    var hit = this.raycast(dir);
-    if (!hit && !this.wallUI.open) {
-      var wp = this.wallHitFromDir(dir, cam);
-      if (wp) {
-        var uiEl = this.uiHit(wp.x, wp.y);
-        if (uiEl && uiEl.id === 'red') {
-          this.openWallUI();
-          S.SFX.shot();
-          return; /* 不消耗射击统计 */
-        }
-      }
-    }
-
     S.SFX.shot();
     this.stats.shots++;
     this.crosshairKick = 1;
 
+    var b = basis(this.yaw, this.pitch);
+    var dir = this.aimDir(b);
+    var cam = this.camVec();
+    var camB = basis(this.yaw, this.pitch);
     var muzzle = {
-      x: cam.x + b.right.x * 9 - b.up.x * 10 + b.fwd.x * 26,
-      y: cam.y + b.right.y * 9 - b.up.y * 10 + b.fwd.y * 26,
-      z: cam.z + b.right.z * 9 - b.up.z * 10 + b.fwd.z * 26
+      x: cam.x + camB.right.x * 9 - camB.up.x * 10 + camB.fwd.x * 26,
+      y: cam.y + camB.right.y * 9 - camB.up.y * 10 + camB.fwd.y * 26,
+      z: cam.z + camB.right.z * 9 - camB.up.z * 10 + camB.fwd.z * 26
     };
 
+    var hit = this.raycast(dir);
     var end = hit ? hit.point
       : { x: cam.x + dir.x * 1500, y: cam.y + dir.y * 1500, z: cam.z + dir.z * 1500 };
     this.fx.push({ type: 'tracer', a: muzzle, b: end, t: 0, life: 0.07 });
@@ -1290,9 +1029,6 @@
         ctx.beginPath(); ctx.moveTo(sp1.x, sp1.y); ctx.lineTo(sp2.x, sp2.y); ctx.stroke();
       }
     }
-
-    // 墙面设置面板(在球之前绘制, 远离视野的球会盖住它 — 符合透视)
-    this.drawWallUI(cam, b, f, w, h);
 
     // 球（远→近）
     var drawable = [];

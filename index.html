@@ -150,7 +150,7 @@
           <h2>右手 · 瞄准训练</h2>
           <p class="lock-hint">左键 / 右键 <b>射击</b> · <b>Esc</b> 解锁鼠标 · <b>R</b> 重新掷球 · <b>1–5</b> 切换模式<br>WASD 移动（需在下方设置开启）· 移动物理与左手训练同源</p>
           <p class="lock-hint dim-txt">本页按 CS2 换算灵敏度：1 像素计 = 1 计数，角度 = 0.022 × 灵敏度 × 计数。<br>建议关闭 Windows「提高指针精确度」以获得与游戏一致的鼠标手感（将申请原始输入）。</p>
-          <p class="lock-hint dim-txt"><b>射击后墙的红色「⚙ 设置」按钮</b>展开墙面上的设置面板；<b>Esc</b> 解锁后也可点击它；<b>鼠标中键拖动</b>可把它移到墙面上任意位置；点画面其他区域重新锁定。</p>
+          <p class="lock-hint dim-txt"><b>Esc</b> 解锁后可直接点按右侧「小球设置」面板与底栏；点击<b>画布</b>或此按钮重新锁定。</p>
           <button id="aimLockBtn" class="btn big">点击锁定鼠标 · 开始训练</button>
         </div>
       </div>
@@ -166,7 +166,69 @@
         </div>
       </div>
 
-      <div id="wallCfgHint" hidden>墙壁设置面板已展开 — 用鼠标点墙面控件调整，<b>鼠标中键拖动</b>可移动整个面板，点画面其他区域重新锁定训练</div>
+      <button id="aimCfgBtn" class="cfg-toggle" title="小球 & 准星设置">⚙ 设置</button>
+
+      <div id="aimCfg" hidden>
+        <h4>小球设置</h4>
+        <div class="cfg-row">
+          <label>大小 <b id="aim-ballRVal">14</b> u</label>
+          <input type="range" id="aim-ballR" min="6" max="32" step="1" value="14">
+        </div>
+        <div class="cfg-row">
+          <label>颜色</label>
+          <div class="swatches">
+            <button class="aim-sw active" data-c="#e8b339" style="background:#e8b339" title="金"></button>
+            <button class="aim-sw" data-c="#7fd8ff" style="background:#7fd8ff" title="蓝"></button>
+            <button class="aim-sw" data-c="#8ae99a" style="background:#8ae99a" title="绿"></button>
+            <button class="aim-sw" data-c="#f27cc4" style="background:#f27cc4" title="粉"></button>
+            <button class="aim-sw" data-c="#ffffff" style="background:#ffffff" title="白"></button>
+            <button class="aim-sw" data-c="#e2594e" style="background:#e2594e" title="红"></button>
+            <input type="color" id="aim-ballColor" value="#e8b339" title="自定义颜色">
+          </div>
+        </div>
+        <h4>出现方向</h4>
+        <div class="dirs">
+          <label class="chk"><input type="checkbox" id="dir-front" checked> 前墙（面向）</label>
+          <label class="chk"><input type="checkbox" id="dir-back" checked> 后墙</label>
+          <label class="chk"><input type="checkbox" id="dir-left" checked> 左墙</label>
+          <label class="chk"><input type="checkbox" id="dir-right" checked> 右墙</label>
+          <label class="chk"><input type="checkbox" id="dir-float" checked> 空中</label>
+        </div>
+        <div class="cfg-row">
+          <label>跟随滞留 <b id="aim-hoverVal">3.0</b> s</label>
+          <input type="range" id="aim-hover" min="0.5" max="10" step="0.5" value="3">
+        </div>
+        <h4>准星设置（CS 式）</h4>
+        <div class="cfg-row">
+          <label>颜色</label>
+          <div class="swatches">
+            <button class="ch-sw active" data-c="#7fd8ff" style="background:#7fd8ff" title="青(默认)"></button>
+            <button class="ch-sw" data-c="#00ff00" style="background:#00ff00" title="绿"></button>
+            <button class="ch-sw" data-c="#ffff00" style="background:#ffff00" title="黄"></button>
+            <button class="ch-sw" data-c="#00bfff" style="background:#00bfff" title="蓝"></button>
+            <button class="ch-sw" data-c="#ff00ff" style="background:#ff00ff" title="粉"></button>
+            <button class="ch-sw" data-c="#ffffff" style="background:#ffffff" title="白"></button>
+            <button class="ch-sw" data-c="#ff0000" style="background:#ff0000" title="红"></button>
+          </div>
+        </div>
+        <div class="cfg-row">
+          <label>样式</label>
+          <div class="mini-seg" id="ch-style">
+            <button data-s="cross" class="active">十字</button>
+            <button data-s="t">T形</button>
+            <button data-s="dot">点</button>
+          </div>
+        </div>
+        <div class="cfg-row"><label>间隙 <b id="ch-gapVal">5</b></label><input type="range" id="ch-gap" min="0" max="20" step="1" value="5"></div>
+        <div class="cfg-row"><label>长度 <b id="ch-lenVal">7</b></label><input type="range" id="ch-len" min="1" max="16" step="1" value="7"></div>
+        <div class="cfg-row"><label>粗细 <b id="ch-thickVal">2</b></label><input type="range" id="ch-thick" min="1" max="6" step="1" value="2"></div>
+        <div class="chr">
+          <label class="chk"><input type="checkbox" id="ch-dot"> 中心点</label>
+          <label class="chk"><input type="checkbox" id="ch-outline"> 描边</label>
+          <label class="chk"><input type="checkbox" id="ch-dynamic" checked> 动态(移动/射击扩散)</label>
+        </div>
+        <p class="cfg-note">所有改动<b>即时映射到场景</b>：大小/颜色马上生效，方向立即重掷，准星实时预览（解锁状态下预览跟随鼠标）。</p>
+      </div>
 
       <div id="aimBar">
         <div class="modes">
