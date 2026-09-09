@@ -67,6 +67,22 @@
     z1: [{ x: -HALF_X, y: 0, z: ZMIN }, { x: HALF_X, y: 0, z: ZMIN }, { x: HALF_X, y: WALL_H, z: ZMIN }, { x: -HALF_X, y: WALL_H, z: ZMIN }]
   };
 
+  /* ---- 颜色工具 ---- */
+  function hexRgb(h) {
+    h = String(h || '#e8b339').replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var n = parseInt(h, 16);
+    if (isNaN(n)) return [232, 179, 57];
+    return [n >> 16 & 255, n >> 8 & 255, n & 255];
+  }
+  function hexLerp(h, target, t) {
+    var c = hexRgb(h);
+    var r = Math.round(c[0] + (target - c[0]) * t);
+    var g = Math.round(c[1] + (target - c[1]) * t);
+    var b = Math.round(c[2] + (target - c[2]) * t);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
   function AimGame() {
     var self = this;
     this.canvas = $('aimCanvas');
@@ -81,6 +97,11 @@
       endAgain: $('aimEndAgain'), endClose: $('aimEndClose'),
       sens: $('aim-sens'), sensVal: $('aim-sensVal'), dpi: $('aim-dpi'), cm360: $('aim-cm360'),
       fov: $('aim-fov'), fovVal: $('aim-fovVal'), move: $('aim-move'),
+      ballR: $('aim-ballR'), ballRVal: $('aim-ballRVal'),
+      ballColor: $('aim-ballColor'), swatches: document.querySelectorAll('.aim-sw'),
+      hover: $('aim-hover'), hoverVal: $('aim-hoverVal'),
+      dirFront: $('dir-front'), dirBack: $('dir-back'),
+      dirLeft: $('dir-left'), dirRight: $('dir-right'), dirFloat: $('dir-float'),
       modeBtns: document.querySelectorAll('.mode-btn')
     };
     this.sets = S.settings.aim;
@@ -106,7 +127,15 @@
     this.over = false;
     this.endOpen = false;
 
-    this.stats = { hits: 0, shots: 0, active: 0, reacts: [], lastMs: 0 };
+    // 小球外观/出现设置
+    this.ballR = +this.sets.ballR || 14;
+    this.ballColor = this.sets.ballColor || '#e8b339';
+    this.dirs = (this.sets.dirs && this.sets.dirs.length === 5) ? this.sets.dirs.slice() : [true, true, true, true, true];
+    this.hoverSecs = +this.sets.hoverSecs || 3;
+    this.ballCss = null; this.ballRgb = null;
+    this.applyBallStyle();
+
+    this.stats = { hits: 0, shots: 0, active: 0, reacts: [], lastMs: 0, escapes: 0 };
     this.bestTime = 0;
     try { this.bestTime = +localStorage.getItem('csx.aim.best.time') || 0; } catch (e) {}
 
@@ -142,6 +171,7 @@
       if (e.code === 'Digit2') self.setMode('track');
       if (e.code === 'Digit3') self.setMode('react');
       if (e.code === 'Digit4') self.setMode('time');
+      if (e.code === 'Digit5') self.setMode('follow');
     });
     window.addEventListener('keyup', function (e) {
       if (e.code === 'KeyW') self.keys.w = false;
@@ -248,6 +278,78 @@
       if (!self.sets.move) { self.move.reset(self.player.x, self.player.z); }
       S.saveSettings();
     });
+
+    /* ---- 小球设置 ---- */
+    this.els.ballR.value = String(this.ballR);
+    this.els.ballRVal.textContent = String(this.ballR);
+    this.els.ballColor.value = this.ballColor;
+    this.els.hover.value = String(this.hoverSecs);
+    this.els.hoverVal.textContent = this.hoverSecs.toFixed(1);
+    this.els.dirFront.checked = this.dirs[0];
+    this.els.dirBack.checked = this.dirs[1];
+    this.els.dirLeft.checked = this.dirs[2];
+    this.els.dirRight.checked = this.dirs[3];
+    this.els.dirFloat.checked = this.dirs[4];
+    for (var swi = 0; swi < this.els.swatches.length; swi++) {
+      this.els.swatches[swi].classList.toggle('active',
+        this.els.swatches[swi].getAttribute('data-c').toLowerCase() === this.ballColor.toLowerCase());
+    }
+
+    this.els.ballR.addEventListener('input', function () {
+      self.ballR = +self.els.ballR.value;
+      self.els.ballRVal.textContent = String(self.ballR);
+      self.sets.ballR = self.ballR;
+      for (var i = 0; i < self.balls.length; i++) self.balls[i].r = self.ballR;
+      S.saveSettings();
+    });
+    function setColor(c) {
+      self.ballColor = c;
+      self.els.ballColor.value = c;
+      self.applyBallStyle();
+      self.sets.ballColor = c;
+      for (var i = 0; i < self.els.swatches.length; i++) {
+        self.els.swatches[i].classList.toggle('active',
+          self.els.swatches[i].getAttribute('data-c').toLowerCase() === c.toLowerCase());
+      }
+      S.saveSettings();
+    }
+    for (var swj = 0; swj < this.els.swatches.length; swj++) {
+      (function (btn) {
+        btn.addEventListener('click', function () {
+          btn.blur();
+          setColor(btn.getAttribute('data-c'));
+          S.SFX.ui();
+        });
+      })(this.els.swatches[swj]);
+    }
+    this.els.ballColor.addEventListener('input', function () {
+      setColor(self.els.ballColor.value);
+    });
+    this.els.hover.addEventListener('input', function () {
+      self.hoverSecs = +self.els.hover.value;
+      self.els.hoverVal.textContent = self.hoverSecs.toFixed(1);
+      self.sets.hoverSecs = self.hoverSecs;
+      S.saveSettings();
+    });
+    function readDirs() {
+      self.dirs = [
+        self.els.dirFront.checked, self.els.dirBack.checked,
+        self.els.dirLeft.checked, self.els.dirRight.checked,
+        self.els.dirFloat.checked
+      ];
+      self.sets.dirs = self.dirs.slice();
+      S.saveSettings();
+    }
+    var dirBoxes = [this.els.dirFront, this.els.dirBack, this.els.dirLeft, this.els.dirRight, this.els.dirFloat];
+    for (var dbi = 0; dbi < dirBoxes.length; dbi++) {
+      dirBoxes[dbi].addEventListener('change', function () { readDirs(); S.SFX.ui(); });
+    }
+  };
+
+  AimGame.prototype.applyBallStyle = function () {
+    var c = this.ballColor || '#e8b339';
+    this.ballCss = { light: hexLerp(c, 255, 0.45), base: c, dark: hexLerp(c, 0, 0.45) };
+    this.ballRgb = hexRgb(c);
   };
 
   AimGame.prototype.applyControls = function () {
@@ -307,14 +409,20 @@
   /* ---------- 球 ---------- */
   AimGame.prototype.makeBall = function () {
     return { base: { x: 0, y: 0, z: 0 }, pos: { x: 0, y: 0, z: 0 }, tan: { x: 1, y: 0, z: 0 },
-      amp: 50, omega: 1, phase: 0, wave: false, r: BALL_R,
-      state: 'alive', popT: 0, respawnDelay: 0, trail: [] };
+      amp: 50, omega: 1, phase: 0, wave: false, r: this.ballR,
+      state: 'alive', popT: 0, respawnDelay: 0, trail: [], hoverT: 0 };
   };
 
   AimGame.prototype.wallPoint = function () {
-    var r = Math.random();
-    var w = r < 0.45 ? WALLS[2] : r < 0.65 ? WALLS[3] : (Math.random() < 0.5 ? WALLS[0] : WALLS[1]);
-    var off = BALL_R + 1;
+    /* dirs(设置): 前(+z) 后(-z) 左(-x) 右(+x) */
+    var list = [];
+    if (this.dirs[0]) list.push(WALLS[2]);
+    if (this.dirs[1]) list.push(WALLS[3]);
+    if (this.dirs[2]) list.push(WALLS[1]);
+    if (this.dirs[3]) list.push(WALLS[0]);
+    if (!list.length) list = [WALLS[0], WALLS[1], WALLS[2], WALLS[3]];
+    var w = list[Math.floor(Math.random() * list.length)];
+    var off = this.ballR + 1;
     if (w.type === 'x') {
       return { x: w.at > 0 ? w.at - off : w.at + off, y: rand(80, WALL_H - 24), z: rand(ZMIN + 60, ZMAX - 60) };
     }
@@ -333,7 +441,7 @@
     opts = opts || {};
     var p = null;
     for (var i = 0; i < 24; i++) {
-      var q = Math.random() < 0.62 ? this.wallPoint() : this.floatPoint();
+      var q = (this.dirs[4] && Math.random() < 0.38) ? this.floatPoint() : this.wallPoint();
       if (opts.spread) {
         var ok = true;
         for (var j = 0; j < this.balls.length; j++) {
@@ -345,7 +453,7 @@
       }
       p = q; break;
     }
-    if (!p) p = this.floatPoint();
+    if (!p) p = this.dirs[4] ? this.floatPoint() : this.wallPoint();
     ball.base = { x: p.x, y: p.y, z: p.z };
     ball.pos = { x: p.x, y: p.y, z: p.z };
     var ang = Math.random() * TAU;
@@ -353,10 +461,12 @@
     ball.amp = rand(40, 90);
     ball.omega = rand(0.5, 1.1);
     ball.phase = rand(0, TAU);
-    ball.wave = opts.wave !== false; // 默认可波浪移动(追踪模式用)
+    ball.wave = opts.wave !== false; // 默认可波浪移动(追踪/跟随模式用)
     ball.state = 'alive';
     ball.popT = 0;
     ball.trail = [];
+    ball.hoverT = 0;
+    ball.r = this.ballR;
   };
 
   AimGame.prototype.setWeapon = function (speed) {
@@ -372,7 +482,7 @@
     this.animT = 0;
     this.fx = [];
     this.cooldown = 0;
-    this.stats = { hits: 0, shots: 0, active: 0, reacts: [], lastMs: 0 };
+    this.stats = { hits: 0, shots: 0, active: 0, reacts: [], lastMs: 0, escapes: 0 };
     this.react = { phase: 'wait', t: rand(0.5, 1.0), t0: 0 };
     this.resolveMode();
 
@@ -386,15 +496,16 @@
 
   AimGame.prototype.resolveMode = function () { /* 依据当前 mode 组织球 */
     this.balls = [];
-    var n = (this.mode === 'track') ? 2 : (this.mode === 'react') ? 1 : 5;
+    var moving = (this.mode === 'track' || this.mode === 'follow');
+    var n = moving ? 2 : (this.mode === 'react') ? 1 : 5;
     for (var i = 0; i < n; i++) {
       var b = this.makeBall();
       if (this.mode === 'react') {
         b.state = 'hidden';
         this.react.ball = b; /* 命中后复用同一对象 */
       } else {
-        b.wave = (this.mode === 'track');
-        this.place(b, { spread: this.mode !== 'track', wave: b.wave });
+        b.wave = moving;
+        this.place(b, { spread: !moving, wave: moving });
       }
       this.balls.push(b);
     }
@@ -407,10 +518,11 @@
       this.react.t = rand(0.5, 1.0);
       return;
     }
+    var moving = (this.mode === 'track' || this.mode === 'follow');
     for (var i = 0; i < this.balls.length; i++) {
       var b = this.balls[i];
-      b.wave = (this.mode === 'track');
-      this.place(b, { spread: this.mode !== 'track', wave: b.wave });
+      b.wave = moving;
+      this.place(b, { spread: !moving, wave: moving });
     }
   };
 
@@ -600,9 +712,41 @@
             this.react.phase = 'wait';
             this.react.t = rand(0.45, 1.05);
           } else {
-            b.wave = (this.mode === 'track');
-            this.place(b, { spread: this.mode !== 'track', wave: b.wave });
+            var mv = (this.mode === 'track' || this.mode === 'follow');
+            b.wave = mv;
+            this.place(b, { spread: !mv, wave: mv });
           }
+        }
+      }
+    }
+
+    /* 跟随模式: 准星停留在小球上的时间累积, 超过上限 → 消失逃脱 */
+    if (this.mode === 'follow') {
+      var dir = basis(this.yaw, this.pitch).fwd;
+      var camH = this.camVec();
+      for (var hi = 0; hi < this.balls.length; hi++) {
+        var hb = this.balls[hi];
+        if (hb.state !== 'alive') continue;
+        var dx = hb.pos.x - camH.x, dy = hb.pos.y - camH.y, dz = hb.pos.z - camH.z;
+        var tt = dx * dir.x + dy * dir.y + dz * dir.z;
+        var hover = false;
+        if (tt > NEAR) {
+          var d2 = (dx * dx + dy * dy + dz * dz) - tt * tt;
+          var rrf = hb.r + 3;
+          if (d2 < rrf * rrf && !this._occluded(dir, tt)) hover = true;
+        }
+        if (hover) {
+          hb.hoverT += dt;
+          if (hb.hoverT >= this.hoverSecs) { /* 逃脱! */
+            hb.state = 'pop';
+            hb.popT = 0;
+            hb.respawnDelay = 0.5;
+            this.stats.escapes++;
+            S.SFX.miss();
+            this.missFlash = 0.14;
+          }
+        } else {
+          hb.hoverT = Math.max(0, hb.hoverT - dt * 2.5); /* 移开准星快速衰减 */
         }
       }
     }
@@ -667,6 +811,9 @@
       var avg = rs.length ? Math.round(rs.reduce(function (a, b) { return a + b; }, 0) / rs.length) : 0;
       this.els.react.textContent = rs.length ? avg + ' ms' : '–';
       this.els.msg.textContent = this.react.phase === 'wait' ? '注意…球出现立刻射击（过早开枪算脱靶）' : '';
+    } else if (this.mode === 'follow') {
+      this.els.react.textContent = '–';
+      this.els.msg.innerHTML = '跟随：逃脱 <b>' + st.escapes + '</b> 次 · 悬停上限 <b>' + this.hoverSecs.toFixed(1) + '</b> s';
     } else {
       this.els.react.textContent = st.lastMs ? Math.round(st.lastMs) + ' ms' : '–';
       this.els.msg.textContent = '';
@@ -805,7 +952,7 @@
           var tsp = project(tc, f, w, h);
           ctx.beginPath();
           ctx.arc(tsp.x, tsp.y, Math.max(1, f * 4 / tc.z * (ti / db.trail.length)), 0, TAU);
-          ctx.fillStyle = 'rgba(232,179,57,' + (0.12 * ti / db.trail.length).toFixed(3) + ')';
+          ctx.fillStyle = 'rgba(' + this.ballRgb.join(',') + ',' + (0.14 * ti / db.trail.length).toFixed(3) + ')';
           ctx.fill();
         }
       }
@@ -815,9 +962,9 @@
       var scr = project(c, f, w, h);
       var rr = Math.max(1.5, f * db.r * scale / c.z);
       var bg = ctx.createRadialGradient(scr.x - rr * 0.3, scr.y - rr * 0.35, rr * 0.15, scr.x, scr.y, rr);
-      bg.addColorStop(0, '#fff3cf');
-      bg.addColorStop(0.55, '#e8b339');
-      bg.addColorStop(1, '#7e5a12');
+      bg.addColorStop(0, this.ballCss.light);
+      bg.addColorStop(0.55, this.ballCss.base);
+      bg.addColorStop(1, this.ballCss.dark);
       ctx.globalAlpha = alpha;
       ctx.beginPath();
       ctx.arc(scr.x, scr.y, rr, 0, TAU);
@@ -827,6 +974,17 @@
       ctx.lineWidth = 1.2;
       ctx.stroke();
       ctx.globalAlpha = 1;
+
+      // 跟随模式: 悬停滞留进度条(球上方)
+      if (this.mode === 'follow' && db.state === 'alive' && db.hoverT > 0.02) {
+        var frac = clamp(db.hoverT / this.hoverSecs, 0, 1);
+        var bw = rr * 2.4, bh = 4;
+        var bx = scr.x - bw / 2, by = scr.y - rr - 14;
+        ctx.fillStyle = 'rgba(8,12,18,0.78)';
+        ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+        ctx.fillStyle = frac < 0.6 ? '#ffd75e' : '#e2594e';
+        ctx.fillRect(bx, by, bw * frac, bh);
+      }
     }
 
     // 特效
@@ -913,7 +1071,7 @@
     }
   };
 
-  var MODES = { flick: 1, track: 1, react: 1, time: 1 };
+  var MODES = { flick: 1, track: 1, react: 1, time: 1, follow: 1 };
 
   S.Aim = {
     init: function () { return new AimGame(); }

@@ -148,7 +148,7 @@
       <div id="aimLockOverlay">
         <div class="lockbox">
           <h2>右手 · 瞄准训练</h2>
-          <p class="lock-hint">左键 / 右键 <b>射击</b> · <b>Esc</b> 解锁鼠标 · <b>R</b> 重新掷球 · <b>1–4</b> 切换模式<br>WASD 移动（需在下方设置开启）· 移动物理与左手训练同源</p>
+          <p class="lock-hint">左键 / 右键 <b>射击</b> · <b>Esc</b> 解锁鼠标 · <b>R</b> 重新掷球 · <b>1–5</b> 切换模式<br>WASD 移动（需在下方设置开启）· 移动物理与左手训练同源</p>
           <p class="lock-hint dim-txt">本页按 CS2 换算灵敏度：1 像素计 = 1 计数，角度 = 0.022 × 灵敏度 × 计数。<br>建议关闭 Windows「提高指针精确度」以获得与游戏一致的鼠标手感（将申请原始输入）。</p>
           <button id="aimLockBtn" class="btn big">点击锁定鼠标 · 开始训练</button>
         </div>
@@ -165,12 +165,46 @@
         </div>
       </div>
 
+      <div id="aimCfg">
+        <h4>小球设置</h4>
+        <div class="cfg-row">
+          <label>大小 <b id="aim-ballRVal">14</b> u</label>
+          <input type="range" id="aim-ballR" min="6" max="32" step="1" value="14">
+        </div>
+        <div class="cfg-row">
+          <label>颜色</label>
+          <div class="swatches">
+            <button class="aim-sw active" data-c="#e8b339" style="background:#e8b339" title="金"></button>
+            <button class="aim-sw" data-c="#7fd8ff" style="background:#7fd8ff" title="蓝"></button>
+            <button class="aim-sw" data-c="#8ae99a" style="background:#8ae99a" title="绿"></button>
+            <button class="aim-sw" data-c="#f27cc4" style="background:#f27cc4" title="粉"></button>
+            <button class="aim-sw" data-c="#ffffff" style="background:#ffffff" title="白"></button>
+            <button class="aim-sw" data-c="#e2594e" style="background:#e2594e" title="红"></button>
+            <input type="color" id="aim-ballColor" value="#e8b339" title="自定义颜色">
+          </div>
+        </div>
+        <h4>出现方向</h4>
+        <div class="dirs">
+          <label class="chk"><input type="checkbox" id="dir-front" checked> 前墙（面向）</label>
+          <label class="chk"><input type="checkbox" id="dir-back" checked> 后墙</label>
+          <label class="chk"><input type="checkbox" id="dir-left" checked> 左墙</label>
+          <label class="chk"><input type="checkbox" id="dir-right" checked> 右墙</label>
+          <label class="chk"><input type="checkbox" id="dir-float" checked> 空中</label>
+        </div>
+        <div class="cfg-row">
+          <label>跟随滞留 <b id="aim-hoverVal">3.0</b> s</label>
+          <input type="range" id="aim-hover" min="0.5" max="10" step="0.5" value="3">
+        </div>
+        <p class="cfg-note">跟随模式：准星停留在小球上超过滞留时间，小球会<b>消失逃脱</b>（球上方显示进度条）。大小/颜色立即生效，方向作用于下一个球。调整设置需先 <b>Esc</b> 解锁鼠标。</p>
+      </div>
+
       <div id="aimBar">
         <div class="modes">
           <button class="mode-btn active" data-mode="flick">清球</button>
           <button class="mode-btn" data-mode="track">追踪</button>
           <button class="mode-btn" data-mode="react">反应</button>
           <button class="mode-btn" data-mode="time">60秒挑战</button>
+          <button class="mode-btn" data-mode="follow">跟随</button>
         </div>
         <label>灵敏度 <input type="range" id="aim-sens" min="0.2" max="5" step="0.05"> <b id="aim-sensVal">2.00</b></label>
         <label>DPI <select id="aim-dpi"><option>400</option><option>800</option><option>1600</option></select></label>
