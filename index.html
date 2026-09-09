@@ -54,7 +54,7 @@
         <div class="lockbox">
           <h2>左手 · 急停训练</h2>
           <p class="lock-hint">WASD <b>移动</b> · 鼠标 <b>视角</b>（CS2 灵敏度换算）· <b>空格</b> 跳跃 · <b>Esc</b> 解锁<br>冲入圆环后<b>立刻反向按键急停</b> —— 逆向键是 CS 里唯一的合法刹车</p>
-          <p class="lock-hint dim-txt">切到「拉线墙 / 矩形块 / 拆除」会自动进入 2D 俯视编辑视图，完成后点「3D 训练」返回</p>
+          <p class="lock-hint dim-txt">解锁后可直接点击<b>左侧面板</b>调设置/切工具；点<b>画布</b>或此按钮重新锁定。<br>切到「拉线墙 / 矩形块 / 拆除」会自动进入 2D 俯视编辑视图，完成后点「3D 训练」返回</p>
           <button id="leftLockBtn" class="btn big">点击锁定鼠标 · 开始训练</button>
         </div>
       </div>
@@ -150,6 +150,7 @@
           <h2>右手 · 瞄准训练</h2>
           <p class="lock-hint">左键 / 右键 <b>射击</b> · <b>Esc</b> 解锁鼠标 · <b>R</b> 重新掷球 · <b>1–5</b> 切换模式<br>WASD 移动（需在下方设置开启）· 移动物理与左手训练同源</p>
           <p class="lock-hint dim-txt">本页按 CS2 换算灵敏度：1 像素计 = 1 计数，角度 = 0.022 × 灵敏度 × 计数。<br>建议关闭 Windows「提高指针精确度」以获得与游戏一致的鼠标手感（将申请原始输入）。</p>
+          <p class="lock-hint dim-txt"><b>Esc</b> 解锁后可直接点按右侧「小球设置」面板与底栏；点击<b>画布</b>或此按钮重新锁定。</p>
           <button id="aimLockBtn" class="btn big">点击锁定鼠标 · 开始训练</button>
         </div>
       </div>
@@ -195,7 +196,7 @@
           <label>跟随滞留 <b id="aim-hoverVal">3.0</b> s</label>
           <input type="range" id="aim-hover" min="0.5" max="10" step="0.5" value="3">
         </div>
-        <p class="cfg-note">跟随模式：准星停留在小球上超过滞留时间，小球会<b>消失逃脱</b>（球上方显示进度条）。大小/颜色立即生效，方向作用于下一个球。调整设置需先 <b>Esc</b> 解锁鼠标。</p>
+        <p class="cfg-note">跟随模式：准星停留在小球上超过滞留时间，小球会<b>消失逃脱</b>（球上方显示进度条）。大小/颜色立即生效，方向作用于下一个球。按 <b>Esc</b> 解锁后即可直接点此面板；点击画布重新锁定。</p>
       </div>
 
       <div id="aimBar">

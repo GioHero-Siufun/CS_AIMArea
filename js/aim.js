@@ -198,7 +198,10 @@
     canvas.addEventListener('mousedown', function (e) {
       canvas.blur();
       if (e.button !== 0 && e.button !== 2) return;
-      if (!self.locked) { self.lockPointer(); return; }
+      if (!self.locked) {
+        if (!self.endOpen) self.lockPointer(); /* 结算遮罩打开时不要误重新锁定 */
+        return;
+      }
       e.preventDefault();
       self.shoot();
     });

@@ -208,10 +208,22 @@ input[type=range] { accent-color: var(--acc); height: 4px; cursor: pointer; }
   font-size: 15px; color: var(--dim); text-shadow: 0 1px 8px #000;
 }
 
-/* ---- 瞄准 遮罩 / 结算 / 底栏 ---- */
+/* ---- 瞄准 遮罩 / 结算 / 底栏 ----
+ * 锁定遮罩(aim/left)改为"穿透式": 只有中央提示框可点,
+ * 四周点击穿透到设置面板/底栏/画布 —— Esc 解锁后可直接调整设置。
+ * 结算遮罩(aimEnd)保持全屏阻挡。 */
 #aimLockOverlay, #leftLockOverlay, #aimEnd {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  background: rgba(6, 9, 14, .82); backdrop-filter: blur(3px); z-index: 5;
+  z-index: 5;
+}
+#aimLockOverlay, #leftLockOverlay {
+  background: rgba(6, 9, 14, .45);
+  pointer-events: none;
+}
+#aimLockOverlay .lockbox, #leftLockOverlay .lockbox { pointer-events: auto; }
+#aimEnd {
+  background: rgba(6, 9, 14, .82); backdrop-filter: blur(3px);
+  pointer-events: auto;
 }
 .lockbox {
   text-align: center; max-width: 560px;
